@@ -2,6 +2,7 @@
 Construcción de un método de posicionamiento dentro de hileras 
 de frutales utilizando integración de sensores y fingerprint.
 
+```
 /* 
  * Copyright (C) 2024-2025 Rafael Ignacio Zurita <rafa@fi.uncoma.edu.ar>
  *
@@ -15,3 +16,4 @@ de frutales utilizando integración de sensores y fingerprint.
  *  License along with this software (check COPYING); if not, write to the Free
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+```
