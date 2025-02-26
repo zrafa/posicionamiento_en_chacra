@@ -1,9 +1,6 @@
-/**
- * File: Demo.cpp
- * Date: November 2011
- * Author: Dorian Galvez-Lopez
- * Description: demo application of DBoW2
- * License: see the LICENSE.txt file
+/*
+ * detectar_troncos.cpp: sistema de posicionamiento de un tractor 
+ * dentro de las hileras de una chacra.
  */
 
 #include <iostream>
@@ -27,9 +24,6 @@ using namespace std;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-// number of training images
-const int NIMAGES = 1262;
-
 int DB = 0;		// ejecutar en modo busqueda
 
 int MARGEN;
@@ -41,16 +35,10 @@ int N_ULT_ARBOLES;
 
 int distancia = 0;	/* distancia actual leida desde lidar */
 long long tiempo_us = 0;	/* distancia actual leida desde lidar */
-// #define N_ULT_ARBOLES 4
 
-
-frutal ultimos_arboles[100];
-// frutal ultimos_arboles[N_ULT_ARBOLES];
+frutal ultimos_arboles[20];
 
 extern cv::Ptr<cv::ORB> orb;
-
-
-
 extern vector<arbol_db> db;
 
 
@@ -63,7 +51,9 @@ struct GPS_data {
 };
 
 // Función para convertir coordenadas GPS a píxeles
-cv::Point2f gpsToPixel(double latitude, double longitude, double ref_lat, double ref_lon) {
+cv::Point2f gps_to_pixel(double latitude, double longitude, 
+		         double ref_lat, double ref_lon) 
+{
     // Aproximación: 1 grado de latitud ≈ 111,320 metros, 1 grado de longitud ≈ 96,486 metros
     double lat_to_meters = 111320.0;
     double lon_to_meters = 96486.0;
@@ -77,9 +67,8 @@ cv::Point2f gpsToPixel(double latitude, double longitude, double ref_lat, double
     return cv::Point2f(delta_lon * escala, -delta_lat * escala); // Negativo para ajustar el eje Y
 }
 
-void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double *longitud) {
-
-    // Abrir el archivo gps.txt
+void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double *longitud) 
+{
     ifstream file("gps.txt");
     if (!file.is_open()) {
         cerr << "Error: No se pudo abrir el archivo gps.txt" << endl;
@@ -124,7 +113,6 @@ void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double 
         }
     }
 
-    // Cerrar el archivo
     file.close();
 
     // Verificar si min_time_diff está dentro del rango
@@ -140,19 +128,21 @@ void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double 
 }
 
 // Función para mostrar el GPS en la ventana
-void mostrar_gps(cv::Mat &ventana_completa) {
+void mostrar_gps(cv::Mat &ventana_completa) 
+{
     // Referencia de latitud y longitud (puedes ajustarla a tu ubicación)
     double ref_lat = -38.867787; // Latitud de referencia (Cipolletti)
     double ref_lon = -68.036963; // Longitud de referencia (Cipolletti)
 
     double latitud;
     double longitud;
+
     obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
 
     // Si se encontró una trama cercana, mostrar el círculo
     if (latitud != -1.0) {
         // Convertir coordenadas GPS a píxeles
-        cv::Point2f pos = gpsToPixel(latitud, longitud, ref_lat, ref_lon);
+        cv::Point2f pos = gps_to_pixel(latitud, longitud, ref_lat, ref_lon);
 
 	pos.x += 800.0f;
 	pos.y += 600.0f;
@@ -166,45 +156,39 @@ void mostrar_gps(cv::Mat &ventana_completa) {
 
 
 
-
-
-
-
-
-
-
 // Función para leer el archivo de configuración
-map<string, int> leerConfiguracion(const string& archivo) {
-    ifstream archivoConfig(archivo);
-        if (!archivoConfig) {
+map<string, int> leer_configuracion(const string& archivo) 
+{
+	ifstream conf_file(archivo);
+        if (!conf_file) {
         	cerr << "Error: config.txt no existe." << endl;
         	exit(1);
         }
 
-    map<string, int> config;
-    string linea;
+	map<string, int> config;
+	string linea;
 
-    while (getline(archivoConfig, linea)) {
-        // Saltar líneas vacías o comentarios
-        if (linea.empty() || linea[0] == '#') continue;
+	while (getline(conf_file, linea)) {
+		// Saltar líneas vacías o comentarios
+		if (linea.empty() || linea[0] == '#') continue;
 
-        // Buscar el signo '='
-        size_t pos = linea.find('=');
-        if (pos != string::npos) {
-            string clave = linea.substr(0, pos);
-            string valor = linea.substr(pos + 1);
+		// Buscar el signo '='
+		size_t pos = linea.find('=');
+		if (pos != string::npos) {
+			string clave = linea.substr(0, pos);
+			string valor = linea.substr(pos + 1);
 
-            // Convertir el valor a entero
-            stringstream ss(valor);
-            int valorInt;
-            ss >> valorInt;
+			// Convertir el valor a entero
+			stringstream ss(valor);
+			int valorInt;
+			ss >> valorInt;
 
-            config[clave] = valorInt;
-        }
-    }
+			config[clave] = valorInt;
+		}
+	}
 
-    archivoConfig.close();
-    return config;
+	conf_file.close();
+	return config;
 }
 
 void mostrar_distancia(cv::Mat &ventana_completa) 
@@ -224,16 +208,11 @@ void mostrar_distancia(cv::Mat &ventana_completa)
     cv::Size textSize = cv::getTextSize(texto.str(), fontFace, fontScale, thickness, &baseline);
 
     // Posicionar el texto en la parte superior izquierda, asegurando que "cm" y el número estén alineados
-    //cv::Point textOrg(ventana_completa.cols - textSize.width - 10, 500); // Ajuste de la posición X para alinear el texto
     cv::Point textOrg(30 , 520); // Ajuste de la posición X para alinear el texto
 
     // Mostrar el texto sobre la imagen
     cv::putText(ventana_completa, texto.str(), textOrg, fontFace, fontScale, cv::Scalar(255, 255, 255), thickness);
 
-    // Mostrar la imagen en una ventana
-   // cv::imshow("Ventana Principal", ventana_completa);
-    // Esperar hasta que el usuario presione una tecla
-    //cv::waitKey(1);
 }
 
 
@@ -241,9 +220,10 @@ void mostrar_distancia(cv::Mat &ventana_completa)
 #define verde 1
 int tractor_color = rojo;
 
-void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
+void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
                                int distancia_hilera, int radio_peral, cv::Scalar color_peral,
-                               int radio_tractor, int nro_hilera, int nro_peral) {
+                               int radio_tractor, int nro_hilera, int nro_peral) 
+{
     static bool hileras_dibujadas = false;  // Variable estática que indica si las hileras ya se dibujaron
     static cv::Mat imagen_hileras;  // Variable estática para guardar la imagen de las hileras
 
@@ -268,16 +248,12 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
     }
 
     // Copiar las hileras a la ventana de salida
-    //imagen_hileras.copyTo(ventana_completa);  // Copiar el contenido de imagen_hileras a ventana_completa
-    //imagen_hileras.copyTo(ventana_completa(cv::Rect(0, 400, 640, 480)));
      if (ventana_completa.cols >= imagen_hileras.cols && ventana_completa.rows >= imagen_hileras.rows) {
-        // Verificar que la subregión seleccionada en ventana_completa tiene un tamaño adecuado
         imagen_hileras.copyTo(ventana_completa(cv::Rect(0, 500, imagen_hileras.cols, imagen_hileras.rows)));
     } else {
         cerr << "Error: La ventana completa no tiene un tamaño suficiente para contener la imagen de las hileras." << endl;
         return;
     }
-
 
     // Dibujar el tractor en la hilera y peral indicados
     int tractor_x = nro_peral * 20 + 20;  // Posición x del tractor según el número de peral
@@ -288,15 +264,10 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
 		color_tractor = cv::Scalar(0, 0, 255);  // Color rojo para el tractor
 	else
 		color_tractor = cv::Scalar(0, 255, 0);  // Color rojo para el tractor
+							//
     cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
 
-    // Mostrar la imagen
-  //  cv::imshow("Ventana Principal", ventana_completa);
-   // cv::waitKey(1);  // Esperar a que se cierre la ventana
-		     //
-		     //
 }
-
 
 
 
@@ -304,7 +275,8 @@ void dibujarHilerasConTractor(cv::Mat &ventana_completa, int num_hileras, int pe
 int tractor_en_peral = 0;
 
 // Función para mostrar imágenes en las posiciones deseadas
-void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
+void mostrar_foto(const cv::Mat& foto_orig, int posicion) 
+{
     // Crea la ventana si no existe
     static bool ventana_creada = false;
     if (!ventana_creada) {
@@ -319,7 +291,6 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
     } else {
         foto = foto_orig;
     }
-
 
     // Definir la imagen principal (640x480) y las pequeñas (320x480)
     static cv::Mat imagen_principal = cv::Mat::zeros(480, 640, CV_8UC3);  // Imagen principal (640x480)
@@ -342,9 +313,8 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
             return;
     }
 
-        // Combina las imágenes en una sola para la ventana
+    // Combina las imágenes en una sola para la ventana
     // La ventana completa debe ser de tamaño 1280x480
-    //cv::Mat ventana_completa(480, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
     cv::Mat ventana_completa(800, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
 
     imagen_principal.copyTo(ventana_completa(cv::Rect(0, 0, 640, 480)));
@@ -352,12 +322,6 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
     imagen_pequena1.copyTo(ventana_completa(cv::Rect(740, 0, 320, 480)));
 
     imagen_pequena2.copyTo(ventana_completa(cv::Rect(1160, 0, 320, 480)));
-
-
-
-		     //
-		     //
-
 
     // Parámetros de las hileras
     int num_hileras = 10;  // Número de hileras de perales
@@ -369,19 +333,13 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
     // Parámetros del tractor
     int radio_tractor = 5;  // Radio del círculo del tractor
 
-    // Crear una ventana para mostrar la imagen
-    //cv::Mat ventana_completa(500, 600, CV_8UC3);  // Imagen de 500x600 px
-
     // Llamada a la función para dibujar hileras y tractor en la hilera 3, peral 5
-    dibujarHilerasConTractor(ventana_completa, num_hileras, perales_por_hilera,
+    mostrar_hileras_con_tractor(ventana_completa, num_hileras, perales_por_hilera,
                              distancia_hilera, radio_peral, color_peral,
                              radio_tractor, 3, tractor_en_peral);
 
     mostrar_distancia(ventana_completa);
 
-    // Mostrar la ventana
-    //cv::imshow("Ventana Principal", ventana_completa);
-    //cv::waitKey(1);  // Para refrescar la ventana sin bloquear
     mostrar_gps(ventana_completa);
     cv::imshow("Ventana Principal", ventana_completa);
     cv::waitKey(1);  // Para refrescar la ventana sin bloquear
@@ -389,14 +347,12 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion) {
 
 
 
-
-
-
 //  ---------------- DIAMETRO
 //
 // Calcular el diametro a partir de las muestras que quedan dentro del desvío
 // estándar
-double diametro_medio(const vector<double>& datos) {
+double diametro_medio(const vector<double>& datos) 
+{
     // Calcular la media aritmética
     double suma = 0;
     for (double valor : datos) {
@@ -439,40 +395,9 @@ double diametro_medio(const vector<double>& datos) {
 
 
 
-// ---------------------- PINTAR TRONCO 
-
-// Función para calcular la media de un parche central de 10x10 píxeles
-double calcularMediaParcheCentral(const cv::Mat& gray, int centroX, int patchSize) {
-    int rows = gray.rows;
-    // int cols = gray.cols;
-
-    int centralRow = rows / 2;
-    // int centralCol = cols / 2;
-    int centralCol = centroX;
-
-    double sum = 0.0;
-    int count = 0;
-
-    for (int i = -patchSize/2; i < patchSize/2; i++) {
-        for (int j = -patchSize/2; j < patchSize/2; j++) {
-            sum += gray.at<uchar>(centralRow + i, centralCol + j);
-            count++;
-        }
-    }
-
-    return sum / count;
-}
-
-
-
 // ---------------------- ENCONTRAR TRONCO
 
 // ----------------------- FUNCIONES DE AYUDA
-
-
-
-// ---------------------------- DB
-// ---------------------------- fin de DB
 
 
 
@@ -500,8 +425,8 @@ struct LidarData {
     long long marca_us;
 };
 
-    // Leer los datos del archivo lidar.txt
-	vector<LidarData> datosLidar;
+// Leer los datos del archivo lidar.txt
+vector<LidarData> datos_lidar;
 
 
 // Función para leer los datos del archivo lidar.txt
@@ -545,7 +470,7 @@ int buscarDistanciaCercana(long long tiempo_us) {
     int distanciaCercana = -1;
     long long menorDiferencia = numeric_limits<long long>::max();
 
-    for (const auto& dato : datosLidar) {
+    for (const auto& dato : datos_lidar) {
         long long diferencia = abs(dato.marca_us - tiempo_us);
 
         if (diferencia < menorDiferencia) {
@@ -781,52 +706,47 @@ void buscar_troncos();
 
 int main(int argc, char* argv[]) 
 {
-    // Verifica si el número de argumentos es mayor que 1
-    if (argc > 1) {
-        // Compara el primer argumento con "db"
-        if (strcmp(argv[1], "db") == 0) {
-            DB = 1;  // ejecutar en modo DB
-		    cout << " en modo DB " << endl;
-        }
-    }
+	// Verifica si es modo "db" o modo "posicionamiento"
+	if (argc > 1) {
+		if (strcmp(argv[1], "db") == 0) {
+			DB = 1;  // ejecutar en modo DB
+			cout << " en modo DB " << endl;
+		}
+	}
 
-    orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+	orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
 
-    if (!DB) {
-	    db_load("hilera.db");
-	    int i;
-	    for (i=0; i<30; i++) {
-		    cout << db[i].id << " " << db[i].diametro_en_px << " " << db[i].diametro_en_cm << endl;
-	    }
+	if (!DB) {
+		db_load("hilera.db");
+		for (int i=0; i<30; i++) {
+			cout << db[i].id << " " << db[i].diametro_en_px << " " << db[i].diametro_en_cm << endl;
+		}
+	}
 
-    }
+	
 
-    // Leer la configuración desde el archivo
-    map<string, int> config = leerConfiguracion("config.txt");
-    // Acceder a los valores de la configuración
-    MARGEN = config["margen"];
-    DISTANCIA_ARBOL = config["distancia_arbol"];
-    CONSECUTIVOS = config["consecutivos"];
-    UMBRAL_COLOR = config["umbral_color"];
-    UMBRAL_GRIS = config["umbral_gris"];
-    N_ULT_ARBOLES = config["n_ult_arboles"];
-
-
-    // Inicializar la ventana principal
-    cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
-    //cv::resizeWindow("Ventana Principal", 1280, 480);
-    cv::resizeWindow("Ventana Principal", 800, 600);
+	// Leer la configuración
+	map<string, int> config = leer_configuracion("config.txt");
+	// Acceder a los valores de la configuración
+	MARGEN = config["margen"];
+	DISTANCIA_ARBOL = config["distancia_arbol"];
+	CONSECUTIVOS = config["consecutivos"];
+	UMBRAL_COLOR = config["umbral_color"];
+	UMBRAL_GRIS = config["umbral_gris"];
+	N_ULT_ARBOLES = config["n_ult_arboles"];
 
 
+	// ventana principal
+	cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
+	cv::resizeWindow("Ventana Principal", 800, 600);
 
-
-	datosLidar = leerDatosLidar("lidar.txt");
+	datos_lidar = leerDatosLidar("lidar.txt");
   	buscar_troncos();
 
-    if (DB)
-	db_save("hilera.db");
+	if (DB)
+		db_save("hilera.db");
 
-  return 0;
+	return 0;
 }
 
 // IDEAS:
@@ -933,9 +853,9 @@ void buscar_troncos()
                 // Calcula la duración
                 chrono::duration<double> duration = end - start;
                 // Imprime la duración en segundos
-                cout << " Tiempo transcurrido foto : " << numero << " " << ii-1 << "  " << duration.count() << " segundos" << endl; // Inicia un nuevo cronometro
+                cout << " Tiempo transcurrido foto : " << numero << " " << ii-1 << "  " << duration.count() << " segundos" << endl; 
+		// Inicia un nuevo cronometro
                 start = chrono::high_resolution_clock::now();
-
 
 		// Leer las líneas restantes y procesarlas
 		string linea;
@@ -950,7 +870,6 @@ void buscar_troncos()
 			exit(1);
 		}
 
-
 		string nombreArchivo = ss.str();
 		// Encontrar la posición del punto para eliminar la extensión
 		size_t pos = nombreArchivo.find(".jpg");
@@ -959,7 +878,7 @@ void buscar_troncos()
 		// Convertir el string a long long
 		long long marcaTiempo = stoll(marcaTiempoStr);
 
-			tiempo_us = marcaTiempo;
+		tiempo_us = marcaTiempo;
 
 		mostrar_foto(image_color, 1);
 		// usleep(50000);
@@ -997,6 +916,7 @@ void buscar_troncos()
 			tractor_en_peral++;
 			tractor_color = rojo;
 		}
+
 		if (total == (N_ULT_ARBOLES-1)) {
 			vector<double> diametros;
 			vector<double> distancias;
