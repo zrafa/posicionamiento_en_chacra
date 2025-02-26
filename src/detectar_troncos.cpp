@@ -52,7 +52,7 @@ long long tiempo_us = 0;	/* distancia actual leida desde lidar */
 
 frutal ultimos_arboles[N_ULT_ARBOLES];
 
-cv::Ptr<cv::ORB> orb;
+extern cv::Ptr<cv::ORB> orb;
 
 
 
@@ -61,7 +61,7 @@ extern vector<arbol_db> db;
 
 
 // Estructura para almacenar los datos GPS
-struct GPSData {
+struct GPS_data {
     long long timestamp_us;
     double latitude;
     double longitude;
@@ -92,7 +92,7 @@ void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double 
     }
 
     // Variables para almacenar la trama más cercana
-    GPSData closest_data;
+    GPS_data closest_data;
     long long min_time_diff = numeric_limits<long long>::max();
     string line;
     long long prev_timestamp_us = 0;

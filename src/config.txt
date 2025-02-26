@@ -6,5 +6,5 @@ consecutivos=3
 // para detectar un tronco analizamos verticalmente la imagen 
 // en busca de una continuidad vertical de grises dentro de un umbral
 
-umbral_color=20.0
-umbral_gris = 15.0
+umbral_color=20
+umbral_gris=15
