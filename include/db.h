@@ -50,7 +50,8 @@ struct arbol_db {
 
 
 string db_get_foto(int n);
-int db_buscar_por_diametro(double diametro_cm, int arbol_id);
+void db_buscar_por_diametro(double diametro_cm, int arbol_id, int *cual_arbol,
+			   double *cual_diametro);
 void db_buscar_por_gps(int arbol_id, double latitud, double longitud, 
 		       int *cual, double *distancia);
 int db_buscar(const cv::Mat& fotoNueva);

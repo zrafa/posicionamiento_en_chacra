@@ -14,6 +14,7 @@
 #include <algorithm>
 
 #include <vars.h>
+#include <gps.h>
 #include <db.h>
 #include <unistd.h>
 
@@ -41,14 +42,12 @@ frutal ultimos_arboles[20];
 extern cv::Ptr<cv::ORB> orb;
 extern vector<arbol_db> db;
 
-
-
-// Estructura para almacenar los datos GPS
-struct GPS_data {
-    long long timestamp_us;
-    double latitude;
-    double longitude;
+struct MagnetometroData {
+    double timestamp; // Marca de tiempo en milisegundos
+    double x, y, z;   // Valores crudos del magnetómetro
 };
+std::vector<MagnetometroData> data_magnetometro;
+
 
 // Función para convertir coordenadas GPS a píxeles
 cv::Point2f gps_to_pixel(double latitude, double longitude, 
@@ -67,65 +66,6 @@ cv::Point2f gps_to_pixel(double latitude, double longitude,
     return cv::Point2f(delta_lon * escala, -delta_lat * escala); // Negativo para ajustar el eje Y
 }
 
-void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double *longitud) 
-{
-    ifstream file("gps.txt");
-    if (!file.is_open()) {
-        cerr << "Error: No se pudo abrir el archivo gps.txt" << endl;
-        return;
-    }
-
-    // Variables para almacenar la trama más cercana
-    GPS_data closest_data;
-    long long min_time_diff = numeric_limits<long long>::max();
-    string line;
-    long long prev_timestamp_us = 0;
-
-    // Leer el archivo línea por línea
-    while (getline(file, line)) {
-        if (line.find("$GNRMC") != string::npos) {
-            // Procesar la línea $GNRMC
-            stringstream ss(line);
-            string token;
-            vector<string> tokens;
-            while (getline(ss, token, ',')) {
-                tokens.push_back(token);
-            }
-
-            // Extraer latitud y longitud
-            double latitude = stod(tokens[3].substr(0, 2)) + stod(tokens[3].substr(2)) / 60.0;
-            double longitude = stod(tokens[5].substr(0, 3)) + stod(tokens[5].substr(3)) / 60.0;
-            if (tokens[4] == "S") latitude *= -1;
-            if (tokens[6] == "W") longitude *= -1;
-
-            // Calcular la diferencia de tiempo con el tiempo_us proporcionado
-            long long time_diff = abs(prev_timestamp_us - tiempo_us);
-
-            // Si esta trama es la más cercana hasta ahora, guardarla
-            if (time_diff < min_time_diff) {
-                min_time_diff = time_diff;
-                closest_data = {prev_timestamp_us, latitude, longitude};
-            }
-        } else {
-            // Extraer la marca de tiempo (en us)
-            stringstream ss(line);
-            ss >> prev_timestamp_us;
-        }
-    }
-
-    file.close();
-
-    // Verificar si min_time_diff está dentro del rango
-    if (min_time_diff <= 1000000) {
-	    // rango_inferior && min_time_diff <= rango_superior) {
-        *latitud = (double) closest_data.latitude;
-        *longitud = (double) closest_data.longitude;
-    } else {
-        *latitud = (double) -1.0;
-        *longitud = (double) -1.0;
-    }
-
-}
 
 cv::Mat ventana_completa;
 
@@ -156,6 +96,65 @@ void mostrar_gps(cv::Mat &ventana_completa)
 }
 
 
+
+
+// Función para leer los datos del archivo magnetometro.txt
+std::vector<MagnetometroData> readMagnetometroData(const std::string& filename) {
+    std::vector<MagnetometroData> data;
+    std::ifstream file(filename);
+    std::string line;
+
+    while (std::getline(file, line)) {
+        std::istringstream iss(line);
+        double valor1, x, y, z, timestamp;
+        char ch;
+
+        // Leer el primer valor (valor1) y descartarlo
+        iss >> valor1;
+
+        // Leer los valores [x, y, z]
+        iss >> ch; // Leer el '['
+        iss >> x >> ch >> y >> ch >> z >> ch; // Leer x, y, z y el ']'
+
+        // Leer el timestamp
+        iss >> timestamp;
+
+        // Almacenar los datos en el vector
+        data.push_back({timestamp, x, y, z});
+    }
+
+    return data;
+}
+
+// Función para obtener los valores del magnetómetro más cercanos a la marca de tiempo
+void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double* grados, const std::vector<MagnetometroData>& data) {
+    double min_diff = std::numeric_limits<double>::max();
+    MagnetometroData closest_data;
+
+    // Buscar el registro más cercano a tiempo_ms
+    for (const auto& entry : data) {
+        double diff = std::abs(entry.timestamp - tiempo_ms);
+        if (diff < min_diff) {
+            min_diff = diff;
+            closest_data = entry;
+        }
+    }
+
+    // Aplicar el offset de calibración
+    double x_offset = -892.2629067;
+    double y_offset = -644.44928645;
+    double z_offset = 443.14316061;
+
+    *x = closest_data.x - x_offset;
+    *y = closest_data.y - y_offset;
+    *z = closest_data.z - z_offset;
+
+    // Calcular los grados (ángulo en el plano XY)
+    *grados = std::atan2(*y, *x) * 180 / CV_PI;
+    if (*grados < 0) {
+        *grados += 360;
+    }
+}
 
 
 // Función para leer el archivo de configuración
@@ -198,7 +197,7 @@ void mostrar_texto(cv::Mat &ventana_completa, ostringstream &texto, int x, int y
 
     // Definir el tipo de fuente y el tamaño
     int fontFace = cv::FONT_HERSHEY_SIMPLEX;
-    double fontScale = 1;
+    double fontScale = 0.9;
     int thickness = 2;
 
     // Obtener el tamaño del texto
@@ -206,8 +205,8 @@ void mostrar_texto(cv::Mat &ventana_completa, ostringstream &texto, int x, int y
     cv::Size textSize = cv::getTextSize(texto.str(), fontFace, fontScale, thickness, &baseline);
 
     // limpiamos ese sector de la ventana con negro
-    cv::Point punto1(x-20, y-20);   // (x1, y1)
-    cv::Point punto2(x+textSize.width+20, y+textSize.height+20);  // (x2, y2)
+    cv::Point punto1(x-20, y-30);   // (x1, y1)
+    cv::Point punto2(x+textSize.width+20, y+textSize.height+10);  // (x2, y2)
     cv::rectangle(ventana_completa, punto1, punto2, cv::Scalar(0, 0, 0), -1); // -1 relleno 
 
 
@@ -223,7 +222,7 @@ void mostrar_distancia(cv::Mat &ventana_completa)
     // Formato del texto que vamos a mostrar
     ostringstream texto;
     texto << "distancia: " << distancia << " cm";
-    mostrar_texto(ventana_completa, texto, 30, 510);
+    mostrar_texto(ventana_completa, texto, 50, 510);
 }
 
 
@@ -236,13 +235,15 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int
                                int radio_tractor, int nro_hilera, int nro_peral) 
 {
     int y_pos = 510;  // posicion en Y de la ventana completa
+    int alto = 270;
+    int ancho = 700;
 		      
     static bool hileras_dibujadas = false;  // Variable estática que indica si las hileras ya se dibujaron
     static cv::Mat imagen_hileras;  // Variable estática para guardar la imagen de las hileras
 
     if (!hileras_dibujadas) {
         // Crear la imagen de las hileras solo una vez
-        imagen_hileras = cv::Mat::zeros(250, 700, CV_8UC3);  // Inicializamos imagen en negro (o blanco si prefieres)
+        imagen_hileras = cv::Mat::zeros(alto, ancho, CV_8UC3);  // Inicializamos imagen en negro (o blanco si prefieres)
 
         // Dibujar las hileras de perales en la imagen de las hileras
         for (int i = 0; i < num_hileras; i++) {
@@ -279,6 +280,10 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int
 		color_tractor = cv::Scalar(0, 255, 0);  // Color rojo para el tractor
 							//
     cv::circle(ventana_completa, cv::Point(tractor_x, tractor_y), radio_tractor, color_tractor, -1);  // Círculo relleno para el tractor
+
+    ostringstream texto;
+    texto << "grafica de posicionamiento (real-time)";
+    mostrar_texto(ventana_completa, texto, 50, y_pos + alto - 10);
 
 }
 
@@ -349,8 +354,8 @@ void mostrar_ventana_completa(void)
 
     // Llamada a la función para dibujar hileras y tractor en la hilera 3, peral 5
     mostrar_hileras_con_tractor(ventana_completa, num_hileras, perales_por_hilera,
-                             distancia_hilera, radio_peral, color_peral,
-                             radio_tractor, 3, tractor_en_peral);
+                                distancia_hilera, radio_peral, color_peral,
+                                radio_tractor, 3, tractor_en_peral);
 
     mostrar_distancia(ventana_completa);
 
@@ -733,6 +738,8 @@ int main(int argc, char* argv[])
 		}
 	}
 
+    std::string filename = "magnetometro.txt";
+	data_magnetometro = readMagnetometroData(filename);
 	
 
 	// Leer la configuración
@@ -960,13 +967,25 @@ void buscar_troncos()
 				int cual; double distancia;
 				db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
 				cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
+    				ostringstream texto;
+    				texto << "gps lat=" <<  std::fixed << std::setprecision(6) << latitud << " lon=" << longitud;
+    				mostrar_texto(ventana_completa, texto, 700, 600);
 
 				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
 					double diametro_en_cm = diametro_medio(diametros);
-					int cual_diametro;
-					cual_diametro = db_buscar_por_diametro(diametro_en_cm, arbol);
-					cout << arbol << " arbol por diametro FINAL es: " << cual_diametro << endl;
+					int cual_arbol; double cual_diametro;
+					db_buscar_por_diametro(diametro_en_cm, arbol, &cual_arbol, &cual_diametro);
+					cout << arbol << " arbol por diametro FINAL es: " << cual_arbol << " " << cual_diametro << endl;
+    					ostringstream texto;
+    					texto << "diametro=" << diametro_en_cm << " cm           ";
+    					mostrar_texto(ventana_completa, texto, 700, 550);
 				}
+
+    // Ejemplo de uso
+    double tiempo_ms = tiempo_us / 1000; // Marca de tiempo en milisegundos
+    double x, y, z, grados;
+    magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
+    std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
 
 				int cant_arboles = 50;
 				int arbol_en_db[50] = {0};
