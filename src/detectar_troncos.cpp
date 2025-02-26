@@ -21,13 +21,6 @@
 #include <unistd.h>
 
 // OpenCV
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/ximgproc.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-
 #include <opencv2/opencv.hpp>
 
 using namespace std;
@@ -37,20 +30,22 @@ using namespace std;
 // number of training images
 const int NIMAGES = 1262;
 
-int BD = 0;		// ejecutar en modo busqueda
+int DB = 0;		// ejecutar en modo busqueda
 
 int MARGEN;
 int DISTANCIA_ARBOL;
 int CONSECUTIVOS;
 double UMBRAL_COLOR;
 double UMBRAL_GRIS;
+int N_ULT_ARBOLES;
 
 int distancia = 0;	/* distancia actual leida desde lidar */
 long long tiempo_us = 0;	/* distancia actual leida desde lidar */
-#define N_ULT_ARBOLES 4
+// #define N_ULT_ARBOLES 4
 
 
-frutal ultimos_arboles[N_ULT_ARBOLES];
+frutal ultimos_arboles[100];
+// frutal ultimos_arboles[N_ULT_ARBOLES];
 
 extern cv::Ptr<cv::ORB> orb;
 
@@ -476,8 +471,8 @@ double calcularMediaParcheCentral(const cv::Mat& gray, int centroX, int patchSiz
 
 
 
-// ---------------------------- BD
-// ---------------------------- fin de BD
+// ---------------------------- DB
+// ---------------------------- fin de DB
 
 
 
@@ -788,16 +783,16 @@ int main(int argc, char* argv[])
 {
     // Verifica si el número de argumentos es mayor que 1
     if (argc > 1) {
-        // Compara el primer argumento con "bd"
-        if (strcmp(argv[1], "bd") == 0) {
-            BD = 1;  // ejecutar en modo BD
-		    cout << " en modo BD " << endl;
+        // Compara el primer argumento con "db"
+        if (strcmp(argv[1], "db") == 0) {
+            DB = 1;  // ejecutar en modo DB
+		    cout << " en modo DB " << endl;
         }
     }
 
     orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
 
-    if (!BD) {
+    if (!DB) {
 	    db_load("hilera.db");
 	    int i;
 	    for (i=0; i<30; i++) {
@@ -814,6 +809,7 @@ int main(int argc, char* argv[])
     CONSECUTIVOS = config["consecutivos"];
     UMBRAL_COLOR = config["umbral_color"];
     UMBRAL_GRIS = config["umbral_gris"];
+    N_ULT_ARBOLES = config["n_ult_arboles"];
 
 
     // Inicializar la ventana principal
@@ -827,7 +823,7 @@ int main(int argc, char* argv[])
 	datosLidar = leerDatosLidar("lidar.txt");
   	buscar_troncos();
 
-    if (BD)
+    if (DB)
 	db_save("hilera.db");
 
   return 0;
@@ -847,20 +843,20 @@ int main(int argc, char* argv[])
 //   - tambien registrar el diametro en el arreglo.
 //
 //   Si los diametros coinciden y son "mas o menos interesantes (no muy delgados)", registrar
-//   en la BD:
+//   en la DB:
 //        NRO de arbol en la hilera
 //        diametro
 //        los 4 fingerprints para el mismo arbol
 //
-//   Cuando se busque un arbol en la BD, solo existiran datos (en la BD) de algunos arboles de la hilera. 
-//   Arboles interesantes (los delgados o con diametros que fluctuaron no estarán en la BD)
+//   Cuando se busque un arbol en la DB, solo existiran datos (en la DB) de algunos arboles de la hilera. 
+//   Arboles interesantes (los delgados o con diametros que fluctuaron no estarán en la DB)
 //
 //   Entonces el algoritmo de posicionamiento será así:
 //       - por un lado, cuando se detecte un arbol en la foto 3 veces, con distancia acorde,
 //         se contará + 1 (luego tiene que venir un periodo de "no distancia", para volver a contar un arbol
 //         Lo anterior intentará posicionarse "contando" los arboles en la hilera.
 //       - en paralelo, cuando el arbol parezca interesante (diametro parejo, distancia acorde, etc).
-//         se intentará buscar ese arbol en la BD (por diametro, orb descriptors).
+//         se intentará buscar ese arbol en la DB (por diametro, orb descriptors).
 //
 //       
 // ----------------------------------------------------------------------------
@@ -1011,7 +1007,7 @@ void buscar_troncos()
 				diametros.push_back(tmp);
 				distancias.push_back(ultimos_arboles[i].distancia);
 			}
-			if (BD) {
+			if (DB) {
 				if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
 					cout << arbol << " :distancias dispares " << endl;
 					double latitud; double longitud;
@@ -1039,15 +1035,15 @@ void buscar_troncos()
 				}
 
 				int cant_arboles = 50;
-				int arbol_en_bd[50] = {0};
+				int arbol_en_db[50] = {0};
 				for (i=0; i<N_ULT_ARBOLES;i++) {
 					int cual = db_buscar(ultimos_arboles[i].image);
 
 					cout << arbol << " arbol orb es: " << cual << " " << ss.str() << " - " << db_get_foto(cual) << endl;
-					arbol_en_bd[cual]++;
+					arbol_en_db[cual]++;
 				}
 				for (i=0; i<cant_arboles;i++) {
-					if (arbol_en_bd[i] >= (N_ULT_ARBOLES/2)) {
+					if (arbol_en_db[i] >= (N_ULT_ARBOLES/2)) {
 						cout << arbol << " arbol orb FINAL es: " << i << endl;
 						tractor_en_peral = i;
 						tractor_color = verde;

@@ -17,27 +17,21 @@
 #include <unistd.h>
 
 // OpenCV
-#include <opencv2/core.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/ximgproc.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-
 #include <opencv2/opencv.hpp>
 
 using namespace std;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-#define N_ULT_ARBOLES 4
+extern int N_ULT_ARBOLES;
 
 
 // ----------- FUNCIONES DE AYUDA
 
 
 
-void adjust_image_to_mean(cv::Mat& image, double target_mean) {
+void adjust_image_to_mean(cv::Mat& image, double target_mean) 
+{
     // Calcular el promedio actual de la imagen
     cv::Scalar current_mean_scalar = cv::mean(image);
     double current_mean = current_mean_scalar[0];
@@ -56,7 +50,8 @@ void adjust_image_to_mean(cv::Mat& image, double target_mean) {
 
 
 // Función para aplicar la Transformada de Retinex multiescala
-void apply_MSRCR(const cv::Mat& input, cv::Mat& output) {
+void apply_MSRCR(const cv::Mat& input, cv::Mat& output) 
+{
     cv::Mat log_image;
     cv::Mat retinex_image = cv::Mat::zeros(input.size(), CV_32F);
 
@@ -89,11 +84,11 @@ void apply_MSRCR(const cv::Mat& input, cv::Mat& output) {
 
 // ----------- FIN FUNCIONES DE AYUDA
 
-// ------------------------------ BD
+// ------------------------------ DB
 
 vector<arbol_db> db;
 
-extern frutal ultimos_arboles[N_ULT_ARBOLES];
+extern frutal ultimos_arboles[];
 
 cv::Ptr<cv::ORB> orb;
 
@@ -115,15 +110,8 @@ struct GPS_position {
     GPS_position(double lat = 0.0, double lon = 0.0) : latitude(lat), longitude(lon) {}
 };
 
-/*
-double to_decimal_degrees(double degreesMinutes) {
-    double degrees = static_cast<int>(degreesMinutes / 100);
-    double minutes = degreesMinutes - (degrees * 100);
-    return degrees + (minutes / 60.0);
-}
-*/
-
-double haversine_distance(const GPS_position& pos1, const GPS_position& pos2) {
+double haversine_distance(const GPS_position& pos1, const GPS_position& pos2) 
+{
     const double R = 6371.0; // Radio de la Tierra en kilómetros
 
     double lat1 = pos1.latitude * M_PI / 180.0;
@@ -142,7 +130,8 @@ double haversine_distance(const GPS_position& pos1, const GPS_position& pos2) {
     return R * c; // Distancia en kilómetros
 }
 
-int db_buscar_por_diametro(double diametro_cm, int arbol_id) {
+int db_buscar_por_diametro(double diametro_cm, int arbol_id) 
+{
 	int cual = -1;
 	int max_nro_arboles = 1;
 	double min_diametro = 1000.0;
@@ -157,7 +146,9 @@ int db_buscar_por_diametro(double diametro_cm, int arbol_id) {
 	return cual;
 }
 
-void db_buscar_por_gps(int arbol_id, double latitud, double longitud, int *cual, double *distancia) {
+void db_buscar_por_gps(int arbol_id, double latitud, double longitud, 
+		       int *cual, double *distancia) 
+{
 	double min_distance = 1000; 	/* mil metros */
 	int max_nro_arboles = 1;
 
@@ -181,13 +172,14 @@ void db_buscar_por_gps(int arbol_id, double latitud, double longitud, int *cual,
 	*distancia = min_distance;
 }
 
-int db_buscar(const cv::Mat& fotoNueva) {
-	cv::Mat desc_nueva;
+int db_buscar(const cv::Mat& foto) 
+{
+    cv::Mat desc_nueva;
     vector<cv::KeyPoint> keypoints;
 
-		    // Aplicar la Transformada de Retinex multiescala
+    // Aplicar la Transformada de Retinex multiescala
     cv::Mat retinex_image;
-    apply_MSRCR(fotoNueva, retinex_image);
+    apply_MSRCR(foto, retinex_image);
 
     // Ajustar el brillo para mejorar la visibilidad
     cv::Mat final_image;
@@ -197,17 +189,15 @@ int db_buscar(const cv::Mat& fotoNueva) {
 
     // Ajustar las imágenes para que tengan el promedio deseado
     adjust_image_to_mean(final_image, target_mean);
-//    image = final_image.clone();
     orb->detectAndCompute(final_image, cv::noArray(), keypoints, desc_nueva);
-    //orb->detectAndCompute(fotoNueva, cv::noArray(), keypoints, desc_nueva);
 
     cv::BFMatcher matcher(cv::NORM_HAMMING);
-    int mejorId = -1;
-    int maxCoincidencias = 0;
-    double mejorDistancia = DBL_MAX; // Inicializa a la distancia más alta posible
+    int mejor_id = -1;
+    int max_coincidencias = 0;
+    double mejor_distancia = DBL_MAX; // Inicializa a la distancia más alta posible
 
     for (const auto& arbol : db) {
-        int coincidenciasActuales = 0;
+        int coincidencias_actuales = 0;
         double sumaDistancias = 0.0;
 
         for (const auto& descBase : arbol.descriptores) {
@@ -233,91 +223,89 @@ int db_buscar(const cv::Mat& fotoNueva) {
                 }
             }
 
-            coincidenciasActuales += good_matches.size();
+            coincidencias_actuales += good_matches.size();
         }
 
         // Decidir si este árbol es el mejor candidato
-        double distanciaMedia = coincidenciasActuales > 0 ? sumaDistancias / coincidenciasActuales : DBL_MAX;
-        if (coincidenciasActuales > maxCoincidencias ||
-            (coincidenciasActuales == maxCoincidencias && distanciaMedia < mejorDistancia)) {
-            maxCoincidencias = coincidenciasActuales;
-            mejorDistancia = distanciaMedia;
-            mejorId = arbol.id;
+        double dist_media = coincidencias_actuales > 0 ? sumaDistancias / coincidencias_actuales : DBL_MAX;
+        if (coincidencias_actuales > max_coincidencias ||
+            (coincidencias_actuales == max_coincidencias && dist_media < mejor_distancia)) {
+            max_coincidencias = coincidencias_actuales;
+            mejor_distancia = dist_media;
+            mejor_id = arbol.id;
         }
     }
 
-    return mejorId;
+    return mejor_id;
 }
-
-
-
 
 
 
 
 // Función para agregar descriptores ORB de un árbol a la base de datos
-void db_add(int id, int diametro_en_px, double diametro_en_cm, double latitud, double longitud, string foto) {
+void db_add(int id, int diametro_en_px, double diametro_en_cm, 
+	    double latitud, double longitud, string foto) 
+{
 	int i;
-    arbol_db arbol;
-    arbol.id = id;
-    arbol.diametro_en_px = diametro_en_px;
-    arbol.diametro_en_cm = diametro_en_cm;
-    arbol.latitud = latitud;
-    arbol.longitud = longitud;
-    arbol.foto = foto;
+	arbol_db arbol;
+	arbol.id = id;
+	arbol.diametro_en_px = diametro_en_px;
+	arbol.diametro_en_cm = diametro_en_cm;
+	arbol.latitud = latitud;
+	arbol.longitud = longitud;
+	arbol.foto = foto;
 
 	for (i=0; i<N_ULT_ARBOLES; i++) {
 		cv::Mat desc;
 		vector<cv::KeyPoint> keypoints;
 
+		// Aplicar la Transformada de Retinex multiescala
+		cv::Mat retinex_image;
+		apply_MSRCR(ultimos_arboles[i].image, retinex_image);
 
+		// Ajustar el brillo para mejorar la visibilidad
+		cv::Mat final_image;
+		retinex_image.convertTo(final_image, -1, 1.5, 50);  // Incrementar contraste y brillo
 
-    // Aplicar la Transformada de Retinex multiescala
-    cv::Mat retinex_image;
-    apply_MSRCR(ultimos_arboles[i].image, retinex_image);
+		double target_mean = 128.0;
 
-    // Ajustar el brillo para mejorar la visibilidad
-    cv::Mat final_image;
-    retinex_image.convertTo(final_image, -1, 1.5, 50);  // Incrementar contraste y brillo
-
-    double target_mean = 128.0;
-
-    // Ajustar las imágenes para que tengan el promedio deseado
-    adjust_image_to_mean(final_image, target_mean);
-
+		// Ajustar las imágenes para que tengan el promedio deseado
+		adjust_image_to_mean(final_image, target_mean);
 
 		orb->detectAndCompute(final_image, cv::noArray(), keypoints, desc);
 		arbol.descriptores.push_back(desc);
-    }
+	}
 
-    db.push_back(arbol);
+	db.push_back(arbol);
 }
 
-void db_save(const string& archivo) {
+void db_save(const string& archivo) 
+{
 	cv::FileStorage fs(archivo, cv::FileStorage::WRITE);
 
-    fs << "arboles" << "[";
-    for (const auto& arbol : db) {
-        fs << "{";
-        fs << "id" << arbol.id;
-        fs << "diametro_en_px" << arbol.diametro_en_px;
-        fs << "diametro_en_cm" << arbol.diametro_en_cm;
-        fs << "foto" << arbol.foto;
-        fs << "latitud" << arbol.latitud;
-        fs << "longitud" << arbol.longitud;
+	fs << "arboles" << "[";
+	for (const auto& arbol : db) {
+		fs << "{";
+		fs << "id" << arbol.id;
+		fs << "diametro_en_px" << arbol.diametro_en_px;
+		fs << "diametro_en_cm" << arbol.diametro_en_cm;
+		fs << "foto" << arbol.foto;
+		fs << "latitud" << arbol.latitud;
+		fs << "longitud" << arbol.longitud;
 
-        fs << "descriptores" << "[";
-        for (const auto& desc : arbol.descriptores) {
-            fs << desc;
-        }
-        fs << "]";
-        fs << "}";
-    }
-    fs << "]";
-    fs.release();
+		fs << "descriptores" << "[";
+		for (const auto& desc : arbol.descriptores) {
+			fs << desc;
+		}
+		fs << "]";
+		fs << "}";
+	}
+	fs << "]";
+	fs.release();
 }
 
-void db_load(const string& archivo) {
+void db_load(const string& archivo) 
+{
 	cv::FileStorage fs(archivo, cv::FileStorage::READ);
 
 	cv::FileNode arboles = fs["arboles"];
@@ -345,6 +333,6 @@ void db_load(const string& archivo) {
 
 
 
-// ---------------------------- fin de BD
+// ---------------------------- fin de DB
 
 

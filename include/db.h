@@ -24,7 +24,7 @@
 
 using namespace std;
 
-// ------------------------------ BD
+// ------------------------------ DB
 
 struct frutal {
         int nro_arbol;
@@ -59,7 +59,7 @@ void db_add(int id, int diametro_en_px, double diametro_en_cm,
 void db_save(const string& archivo);
 void db_load(const string& archivo);
 
-// ---------------------------- fin de BD
+// ---------------------------- fin de DB
 
 
 #endif // DB_H
