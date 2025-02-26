@@ -127,6 +127,8 @@ void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double 
 
 }
 
+cv::Mat ventana_completa;
+
 // Función para mostrar el GPS en la ventana
 void mostrar_gps(cv::Mat &ventana_completa) 
 {
@@ -144,8 +146,8 @@ void mostrar_gps(cv::Mat &ventana_completa)
         // Convertir coordenadas GPS a píxeles
         cv::Point2f pos = gps_to_pixel(latitud, longitud, ref_lat, ref_lon);
 
-	pos.x += 800.0f;
-	pos.y += 600.0f;
+	pos.x += 300.0f;
+	pos.y += 1000.0f;
 
         // Dibujar un círculo relleno en la posición calculada
         cv::circle(ventana_completa, pos, 5, cv::Scalar(255, 0, 0), -1); // Círculo rojo de 5 píxeles de radio
@@ -191,12 +193,8 @@ map<string, int> leer_configuracion(const string& archivo)
 	return config;
 }
 
-void mostrar_distancia(cv::Mat &ventana_completa) 
+void mostrar_texto(cv::Mat &ventana_completa, ostringstream &texto, int x, int y) 
 {
-
-    // Formato del texto que vamos a mostrar
-    ostringstream texto;
-    texto << "distancia: " << distancia << " cm";
 
     // Definir el tipo de fuente y el tamaño
     int fontFace = cv::FONT_HERSHEY_SIMPLEX;
@@ -207,12 +205,25 @@ void mostrar_distancia(cv::Mat &ventana_completa)
     int baseline = 0;
     cv::Size textSize = cv::getTextSize(texto.str(), fontFace, fontScale, thickness, &baseline);
 
-    // Posicionar el texto en la parte superior izquierda, asegurando que "cm" y el número estén alineados
-    cv::Point textOrg(30 , 520); // Ajuste de la posición X para alinear el texto
+    // limpiamos ese sector de la ventana con negro
+    cv::Point punto1(x-20, y-20);   // (x1, y1)
+    cv::Point punto2(x+textSize.width+20, y+textSize.height+20);  // (x2, y2)
+    cv::rectangle(ventana_completa, punto1, punto2, cv::Scalar(0, 0, 0), -1); // -1 relleno 
+
+
+    // Posicionar el texto 
+    cv::Point textOrg(x , y); 
 
     // Mostrar el texto sobre la imagen
     cv::putText(ventana_completa, texto.str(), textOrg, fontFace, fontScale, cv::Scalar(255, 255, 255), thickness);
+}
 
+void mostrar_distancia(cv::Mat &ventana_completa) 
+{
+    // Formato del texto que vamos a mostrar
+    ostringstream texto;
+    texto << "distancia: " << distancia << " cm";
+    mostrar_texto(ventana_completa, texto, 30, 510);
 }
 
 
@@ -224,6 +235,8 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int
                                int distancia_hilera, int radio_peral, cv::Scalar color_peral,
                                int radio_tractor, int nro_hilera, int nro_peral) 
 {
+    int y_pos = 510;  // posicion en Y de la ventana completa
+		      
     static bool hileras_dibujadas = false;  // Variable estática que indica si las hileras ya se dibujaron
     static cv::Mat imagen_hileras;  // Variable estática para guardar la imagen de las hileras
 
@@ -249,7 +262,7 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int
 
     // Copiar las hileras a la ventana de salida
      if (ventana_completa.cols >= imagen_hileras.cols && ventana_completa.rows >= imagen_hileras.rows) {
-        imagen_hileras.copyTo(ventana_completa(cv::Rect(0, 500, imagen_hileras.cols, imagen_hileras.rows)));
+        imagen_hileras.copyTo(ventana_completa(cv::Rect(0, y_pos, imagen_hileras.cols, imagen_hileras.rows)));
     } else {
         cerr << "Error: La ventana completa no tiene un tamaño suficiente para contener la imagen de las hileras." << endl;
         return;
@@ -257,7 +270,7 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int
 
     // Dibujar el tractor en la hilera y peral indicados
     int tractor_x = nro_peral * 20 + 20;  // Posición x del tractor según el número de peral
-    int tractor_y = (nro_hilera * distancia_hilera) - (distancia_hilera/2) + 50 + 500;  // Posición y del tractor según la hilera
+    int tractor_y = (nro_hilera * distancia_hilera) - (distancia_hilera/2) + 50 + y_pos;  // Posición y del tractor según la hilera
     cv::Scalar color_tractor;
 
      if (tractor_color == rojo) 
@@ -284,7 +297,7 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion)
         ventana_creada = true;
     }
 
-        cv::Mat foto;
+    cv::Mat foto;
     if (foto_orig.channels() != 3) {
         // Si la imagen no tiene 3 canales, convertirla a RGB
         cv::cvtColor(foto_orig, foto, cv::COLOR_GRAY2BGR);  // o cv::COLOR_BGR2RGB dependiendo de la imagen
@@ -314,17 +327,18 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion)
     }
 
     // Combina las imágenes en una sola para la ventana
-    // La ventana completa debe ser de tamaño 1280x480
-    cv::Mat ventana_completa(800, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
 
     imagen_principal.copyTo(ventana_completa(cv::Rect(0, 0, 640, 480)));
 
     imagen_pequena1.copyTo(ventana_completa(cv::Rect(740, 0, 320, 480)));
 
     imagen_pequena2.copyTo(ventana_completa(cv::Rect(1160, 0, 320, 480)));
+}
 
+void mostrar_ventana_completa(void) 
+{
     // Parámetros de las hileras
-    int num_hileras = 10;  // Número de hileras de perales
+    int num_hileras = 8;  // Número de hileras de perales
     int perales_por_hilera = 33;  // Número de perales por hilera
     int distancia_hilera = 25;  // Espacio entre hileras
     int radio_peral = 3;  // Radio de los círculos que representan los perales
@@ -559,16 +573,12 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 	*x1 = bordeIzquierdo;
 	*x2 = bordeDerecho;
 
-	        // Dibujar las líneas de los bordes en la imagen
+	// Dibujar las líneas de los bordes en la imagen
         cv::Mat result;
         cv::cvtColor(gray, result, cv::COLOR_GRAY2BGR);  // Convertir a BGR para dibujar en color
         cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
         cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
 
-	//pintarTronco(result, (bordeDerecho-bordeIzquierdo)/2+bordeIzquierdo, 15);
-        // Mostrar la imagen con los bordes detectados
-        // RAFA cv::imshow("Bordes del tronco detectados", result);
-        // RAFA cv::waitKey(0);
     	mostrar_foto(result, 3);
     } else {
         cout << "No se detectaron los bordes del tronco." << endl;
@@ -738,7 +748,10 @@ int main(int argc, char* argv[])
 
 	// ventana principal
 	cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
-	cv::resizeWindow("Ventana Principal", 800, 600);
+	cv::resizeWindow("Ventana Principal", 900, 700);
+
+	// La ventana completa debe ser de tamaño 1280x480
+	ventana_completa = cv::Mat(1000, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
 
 	datos_lidar = leerDatosLidar("lidar.txt");
   	buscar_troncos();
@@ -882,6 +895,7 @@ void buscar_troncos()
 
 		mostrar_foto(image_color, 1);
 		// usleep(50000);
+		mostrar_ventana_completa();
     
 		distancia = buscarDistanciaCercana(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
