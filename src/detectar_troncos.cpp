@@ -83,6 +83,56 @@ std::vector<MagnetometroData> readMagnetometroData(const std::string& filename) 
     return data;
 }
 
+// Función para leer el archivo mag_out.txt
+void leer_mag_out(const string& filename) {
+    ifstream file(filename);  // Abrir el archivo
+    if (!file.is_open()) {
+        cerr << "Error: No se pudo abrir el archivo " << filename << endl;
+        return;
+    }
+
+    string line;
+    while (getline(file, line)) {  // Leer cada línea del archivo
+        double x, y, z;
+        stringstream ss(line);  // Convertir la línea en un stream de strings
+
+        // Leer los valores de x, y, z desde el stream
+        ss >> x >> y >> z;
+
+        // Mostrar los valores
+    // Aplicar el offset de calibración
+    double x_offset = -713.4790434;
+    double y_offset = -237.35458116;
+    double z_offset = 251.28445005;
+
+    x = x - x_offset;
+    y = y - y_offset;
+    z = z - z_offset;
+
+    // Datos crudos del magnetómetro (ejemplo: [-1450.0, -1387.0, 25.0])
+    cv::Mat raw_data = (cv::Mat_<double>(1, 3) << x, y, z);
+
+    // Matriz de transformación (obtenida de la calibración)
+    cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
+	 0.9644042,  -0.04023857,  0.0,       
+	-0.04023857,  1.03963511,  0.0,       
+	 0.0,          0.0,          0.9989917);
+
+	cv::Mat calibrated_data = raw_data * transformation.t();
+    // Obtener los componentes x, y, z de calibrated_data
+    x = calibrated_data.at<double>(0, 0);  // Componente x
+    y = calibrated_data.at<double>(0, 1);  // Componente y
+    z = calibrated_data.at<double>(0, 2);  // Componente z
+						  
+	// Dibujar un círculo rojo en el centro del recorte (opcional)
+	circle(ventana_completa, cv::Point(x+4000, y+4200), 2, cv::Scalar(0, 0, 255), -1);
+        cout << "MAG_OUT x: " << x << ", y: " << y << ", z: " << z << endl;
+    }
+
+    file.close();  // Cerrar el archivo
+}
+
+
 // Función para obtener los valores del magnetómetro más cercanos a la marca de tiempo
 void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double* grados, const std::vector<MagnetometroData>& data) {
     double min_diff = std::numeric_limits<double>::max();
@@ -98,14 +148,29 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
     }
 
     // Aplicar el offset de calibración
-    double x_offset = -892.2629067;
-    double y_offset = -644.44928645;
-    double z_offset = 443.14316061;
+    double x_offset = -713.4790434;
+    double y_offset = -237.35458116;
+    double z_offset = 251.28445005;
 
     *x = closest_data.x - x_offset;
     *y = closest_data.y - y_offset;
     *z = closest_data.z - z_offset;
 
+    // Datos crudos del magnetómetro (ejemplo: [-1450.0, -1387.0, 25.0])
+    cv::Mat raw_data = (cv::Mat_<double>(1, 3) << *x, *y, *z);
+
+    // Matriz de transformación (obtenida de la calibración)
+    cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
+	 0.9644042,  -0.04023857,  0.0,       
+	-0.04023857,  1.03963511,  0.0,       
+	 0.0,          0.0,          0.9989917);
+
+	cv::Mat calibrated_data = raw_data * transformation.t();
+    // Obtener los componentes x, y, z de calibrated_data
+    *x = calibrated_data.at<double>(0, 0);  // Componente x
+    *y = calibrated_data.at<double>(0, 1);  // Componente y
+    *z = calibrated_data.at<double>(0, 2);  // Componente z
+						  
     // Calcular los grados (ángulo en el plano XY)
     *grados = std::atan2(*y, *x) * 180 / CV_PI;
     if (*grados < 0) {
@@ -548,6 +613,12 @@ int main(int argc, char* argv[])
 	// La ventana completa debe ser de tamaño 1280x480
 	ventana_completa = cv::Mat(1000, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
 
+	// leer_mag_out("mag_out.txt");
+	    // Mostrar la imagen en una ventana
+	cv::imshow("Ventana Principal", ventana_completa);
+	cv::waitKey(0);  // Actualizar la ventana
+
+
 	datos_lidar = leerDatosLidar("lidar.txt");
   	buscar_troncos();
 
@@ -690,6 +761,13 @@ void buscar_troncos()
 
 		mostrar_foto(image_color, 1);
 		// usleep(50000);
+    // Ejemplo de uso
+    double tiempo_ms = tiempo_us / 1000; // Marca de tiempo en milisegundos
+    double x, y, z, grados;
+    magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
+
+    std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
+    mostrar_orientacion(grados);
 		mostrar_ventana_completa();
     
 		distancia = buscarDistanciaCercana(marcaTiempo);
@@ -756,7 +834,7 @@ void buscar_troncos()
 				db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
 				cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
     				ostringstream texto;
-    				texto << "gps lat=" <<  std::fixed << std::setprecision(6) << latitud << " lon=" << longitud;
+    				texto << "gps lat=" << std::fixed << std::setprecision(8) << latitud << " lon=" << longitud;
     				mostrar_texto(ventana_completa, texto, 700, 600);
 
 				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
@@ -769,11 +847,6 @@ void buscar_troncos()
     					mostrar_texto(ventana_completa, texto, 700, 550);
 				}
 
-    // Ejemplo de uso
-    double tiempo_ms = tiempo_us / 1000; // Marca de tiempo en milisegundos
-    double x, y, z, grados;
-    magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
-    std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
 
 				int cant_arboles = 50;
 				int arbol_en_db[50] = {0};

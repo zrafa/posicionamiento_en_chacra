@@ -33,6 +33,7 @@ using namespace std;
 #define verde 1
 
 
+void mostrar_orientacion(double grados);
 // Función para convertir coordenadas GPS a píxeles
 cv::Point2f gps_to_pixel(double latitude, double longitude, 
 		         double ref_lat, double ref_lon);
@@ -42,9 +43,7 @@ void mostrar_gps(cv::Mat &ventana_completa);
 void mostrar_texto(cv::Mat &ventana_completa, ostringstream &texto, int x, int y);
 void mostrar_distancia(cv::Mat &ventana_completa);
 
-void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int num_hileras, int perales_por_hilera,
-                               int distancia_hilera, int radio_peral, cv::Scalar color_peral,
-                               int radio_tractor, int nro_hilera, int nro_peral); 
+void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int nro_hilera, int nro_peral); 
 
 // Función para mostrar imágenes en las posiciones deseadas
 void mostrar_foto(const cv::Mat& foto_orig, int posicion);
