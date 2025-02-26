@@ -130,9 +130,10 @@ double haversine_distance(const GPS_position& pos1, const GPS_position& pos2)
     return R * c; // Distancia en kilómetros
 }
 
-int db_buscar_por_diametro(double diametro_cm, int arbol_id) 
+void db_buscar_por_diametro(double diametro_cm, int arbol_id, int *cual_arbol, double *cual_diametro) 
 {
-	int cual = -1;
+	int cual_a = -1; // cual arbol tentativo
+	double cual_d = -1; // cual diametro tentativo
 	int max_nro_arboles = 1;
 	double min_diametro = 1000.0;
 
@@ -140,10 +141,12 @@ int db_buscar_por_diametro(double diametro_cm, int arbol_id)
 		if ((abs(arbol.diametro_en_cm - diametro_cm) < min_diametro) &&
 		   (abs(arbol.id - arbol_id) <= max_nro_arboles)) {
 			min_diametro = abs(arbol.diametro_en_cm - diametro_cm);
-			cual = arbol.id;
+			cual_a = arbol.id;
+			cual_d = arbol.diametro_en_cm;
 		}
 	}
-	return cual;
+	*cual_arbol = cual_a;
+	*cual_diametro = cual_d;
 }
 
 void db_buscar_por_gps(int arbol_id, double latitud, double longitud, 
