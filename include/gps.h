@@ -17,6 +17,6 @@ struct GPS_data {
     double longitude;
 };
 
-void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double *longitud);
+void gps_get_lat_lon(long long tiempo_us, double *latitud, double *longitud);
 
 #endif  // GPS_H

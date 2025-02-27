@@ -22,8 +22,8 @@ using namespace std;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-
-void obtener_gps_latitud_longitud (long long tiempo_us, double *latitud, double *longitud) 
+// obtener latitud y longitud en base a una marca de tiempo
+void gps_get_lat_lon(long long tiempo_us, double *latitud, double *longitud) 
 {
     ifstream file("gps.txt");
     if (!file.is_open()) {

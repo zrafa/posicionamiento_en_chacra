@@ -17,6 +17,7 @@
 #include <gps.h>
 #include <ui_gfx.h>
 #include <db.h>
+#include <lidar.h>
 #include <unistd.h>
 
 // OpenCV
@@ -289,82 +290,6 @@ void ult_arboles_init(void )
 
 
 
-// Estructura para almacenar la información del lidar
-struct LidarData {
-    int distancia;
-    int tiempo_ms;
-    long long marca_ms;
-    long long marca_us;
-};
-
-// Leer los datos del archivo lidar.txt
-vector<LidarData> datos_lidar;
-
-
-// Función para leer los datos del archivo lidar.txt
-vector<LidarData> leerDatosLidar(const string& nombreArchivo) {
-    vector<LidarData> datos;
-    ifstream archivo(nombreArchivo);
-    string linea;
-    string campo1, campo2, campo3;
-
-    while (getline(archivo, linea)) {
-        stringstream ss(linea);
-        string token;
-        LidarData data;
-
-        // Parsear la línea
-        ss >> campo1 >> data.marca_us >> data.marca_ms;
-
-        // Extraer la distancia y el tiempo desde el primer campo
-        stringstream ss_campo1(campo1);
-        string aux;
-        getline(ss_campo1, aux, ':');  // 000
-        getline(ss_campo1, aux, ':');  // 00102 (distancia)
-        data.distancia = stoi(aux);
-        getline(ss_campo1, aux, ':');  // 000002 (tiempo de demora)
-        data.tiempo_ms = stoi(aux);
-
-            // Aplicar la condición de distancia y tiempo
-            if (data.distancia < 200 && data.tiempo_ms > 10) {
-                data.distancia = 400;
-	    }
-        datos.push_back(data);
-    }
-    return datos;
-}
-
-
-
-
-// Función para buscar la distancia más cercana dada una marca de tiempo
-int buscarDistanciaCercana(long long tiempo_us) {
-    int distanciaCercana = -1;
-    long long menorDiferencia = numeric_limits<long long>::max();
-
-    for (const auto& dato : datos_lidar) {
-        long long diferencia = abs(dato.marca_us - tiempo_us);
-
-        if (diferencia < menorDiferencia) {
-            menorDiferencia = diferencia;
-            // Aplicar la regla de distancia
-	    /*
-            if (dato.distancia < 200 && dato.tiempo_ms > 10) {
-                distanciaCercana = 400;  // Reemplazar por 400 cm
-            } else {
-                distanciaCercana = dato.distancia;
-            }
-	    */
-                distanciaCercana = dato.distancia;
-        }
-    }
-
-    return distanciaCercana;
-}
-
-
-
-
 // ------------------------------------------------------------------------------------------------
 
 
@@ -379,7 +304,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
     // Columna central
     int centralCol = cols / 2;
 
-    distancia = buscarDistanciaCercana(marca_tiempo);
+    distancia = lidar_get_distance(marca_tiempo);
 
     if (distancia > DISTANCIA_ARBOL) {
         cout << "Distancia lejana: ." << distancia << " MARCA TIEMPO: " << marca_tiempo << endl;
@@ -606,20 +531,10 @@ int main(int argc, char* argv[])
 	N_ULT_ARBOLES = config["n_ult_arboles"];
 
 
-	// ventana principal
-	cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
-	cv::resizeWindow("Ventana Principal", 900, 700);
+	// inicializar ui y ventana principal
+	mostrar_init();
 
-	// La ventana completa debe ser de tamaño 1280x480
-	ventana_completa = cv::Mat(1000, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
-
-	// leer_mag_out("mag_out.txt");
-	    // Mostrar la imagen en una ventana
-	cv::imshow("Ventana Principal", ventana_completa);
-	cv::waitKey(0);  // Actualizar la ventana
-
-
-	datos_lidar = leerDatosLidar("lidar.txt");
+	lidar = lidar_load("lidar.txt");
   	buscar_troncos();
 
 	if (DB)
@@ -770,7 +685,7 @@ void buscar_troncos()
     mostrar_orientacion(grados);
 		mostrar_ventana_completa();
     
-		distancia = buscarDistanciaCercana(marcaTiempo);
+		distancia = lidar_get_distance(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
 			total = 0;
 			continue;
@@ -782,7 +697,7 @@ void buscar_troncos()
 			continue;
 
 		ultimos_arboles[total].nro_arbol = arbol;
-		ultimos_arboles[total].distancia = buscarDistanciaCercana(marcaTiempo);
+		ultimos_arboles[total].distancia = lidar_get_distance(marcaTiempo);
 		encontrar_bordes(image, marcaTiempo, &x1, &x2);
 		ultimos_arboles[total].x1 = x1;
 		ultimos_arboles[total].x2 = x2;
@@ -818,18 +733,18 @@ void buscar_troncos()
 				if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
 					cout << arbol << " :distancias dispares " << endl;
 					double latitud; double longitud;
-					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+					gps_get_lat_lon(tiempo_us, &latitud, &longitud);
 					db_add(arbol, -1, -1.0, latitud, longitud, ss.str());
 				} else {
     					double diametro_en_cm = diametro_medio(diametros);
                				cout << arbol << " :diametro medio en cm (sin distancia): . " << diametro_en_cm << endl;
 					double latitud; double longitud;
-					obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+					gps_get_lat_lon(tiempo_us, &latitud, &longitud);
 					db_add(arbol, (int)diametro_en_cm * (int)PIXELES_X_CM, diametro_en_cm, latitud, longitud, ss.str());
 				}
 			} else {
 				double latitud; double longitud;
-				obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+				gps_get_lat_lon(tiempo_us, &latitud, &longitud);
 				int cual; double distancia;
 				db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
 				cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;

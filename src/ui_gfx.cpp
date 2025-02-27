@@ -122,7 +122,7 @@ void mostrar_gps(cv::Mat &ventana_completa)
     double latitud;
     double longitud;
 
-    obtener_gps_latitud_longitud(tiempo_us, &latitud, &longitud);
+    gps_get_lat_lon(tiempo_us, &latitud, &longitud);
 
     // Si se encontró una trama cercana, mostrar el círculo
     if (latitud != -1.0) {
@@ -288,3 +288,18 @@ void mostrar_ventana_completa(void)
     cv::waitKey(1);  // Para refrescar la ventana sin bloquear
 }
 
+void mostrar_init(void)
+{
+       // ventana principal
+        cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
+        cv::resizeWindow("Ventana Principal", 900, 700);
+
+        // La ventana completa debe ser de tamaño 1280x480
+        ventana_completa = cv::Mat(1000, 1480, CV_8UC3, cv::Scalar(0, 0, 0));
+
+        // leer_mag_out("mag_out.txt");
+            // Mostrar la imagen en una ventana
+        //cv::imshow("Ventana Principal", ventana_completa);
+        //cv::waitKey(0);  // Actualizar la ventana
+
+}

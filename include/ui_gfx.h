@@ -48,5 +48,6 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int nro_hilera, int 
 // Función para mostrar imágenes en las posiciones deseadas
 void mostrar_foto(const cv::Mat& foto_orig, int posicion);
 void mostrar_ventana_completa(void);
+void mostrar_init(void);
 
 #endif // UI_GFX_H
