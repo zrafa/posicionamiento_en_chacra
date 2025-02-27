@@ -11,3 +11,4 @@ n_ult_arboles=4
 
 umbral_color=20
 umbral_gris=15
+delay=0

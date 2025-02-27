@@ -286,7 +286,12 @@ void mostrar_ventana_completa(void)
 
     cv::imshow("Ventana Principal", ventana_completa);
     cv::waitKey(1);  // Para refrescar la ventana sin bloquear
+//	int key = cv::waitKey(100) & 0xFF;
+
+ //       if (key == 'a') { cv::waitKey(0); };
 }
+
+extern void leer_mag_out(const string &f );
 
 void mostrar_init(void)
 {
@@ -299,7 +304,7 @@ void mostrar_init(void)
 
         // leer_mag_out("mag_out.txt");
             // Mostrar la imagen en una ventana
-        //cv::imshow("Ventana Principal", ventana_completa);
-        //cv::waitKey(0);  // Actualizar la ventana
+        // cv::imshow("Ventana Principal", ventana_completa);
+        // cv::waitKey(0);  // Actualizar la ventana
 
 }

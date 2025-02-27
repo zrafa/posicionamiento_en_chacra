@@ -35,6 +35,7 @@ int CONSECUTIVOS;
 double UMBRAL_COLOR;
 double UMBRAL_GRIS;
 int N_ULT_ARBOLES;
+int DELAY = 0;
 
 int distancia = 0;	/* distancia actual leida desde lidar */
 long long tiempo_us = 0;	/* distancia actual leida desde lidar */
@@ -84,6 +85,22 @@ std::vector<MagnetometroData> readMagnetometroData(const std::string& filename) 
     return data;
 }
 
+    // Aplicar el offset de calibración
+    double x_offset = -984.6073282;
+    double y_offset =  373.97952865;
+    double z_offset =  313.13908064;
+
+    // Matriz de transformación (obtenida de la calibración)
+    cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
+ 0.95534472, -0.02389597,  0.0,        
+ -0.02389597,  1.04829138,  0.0,        
+  0.0,          0.0,          0.99909221);
+
+//	 0.9644042,  -0.04023857,  0.0,       
+//	-0.04023857,  1.03963511,  0.0,       
+//	 0.0,          0.0,          0.9989917);
+
+
 // Función para leer el archivo mag_out.txt
 void leer_mag_out(const string& filename) {
     ifstream file(filename);  // Abrir el archivo
@@ -101,10 +118,6 @@ void leer_mag_out(const string& filename) {
         ss >> x >> y >> z;
 
         // Mostrar los valores
-    // Aplicar el offset de calibración
-    double x_offset = -713.4790434;
-    double y_offset = -237.35458116;
-    double z_offset = 251.28445005;
 
     x = x - x_offset;
     y = y - y_offset;
@@ -112,12 +125,6 @@ void leer_mag_out(const string& filename) {
 
     // Datos crudos del magnetómetro (ejemplo: [-1450.0, -1387.0, 25.0])
     cv::Mat raw_data = (cv::Mat_<double>(1, 3) << x, y, z);
-
-    // Matriz de transformación (obtenida de la calibración)
-    cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
-	 0.9644042,  -0.04023857,  0.0,       
-	-0.04023857,  1.03963511,  0.0,       
-	 0.0,          0.0,          0.9989917);
 
 	cv::Mat calibrated_data = raw_data * transformation.t();
     // Obtener los componentes x, y, z de calibrated_data
@@ -149,9 +156,9 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
     }
 
     // Aplicar el offset de calibración
-    double x_offset = -713.4790434;
-    double y_offset = -237.35458116;
-    double z_offset = 251.28445005;
+//    double x_offset = -713.4790434;
+ //   double y_offset = -237.35458116;
+  //  double z_offset = 251.28445005;
 
     *x = closest_data.x - x_offset;
     *y = closest_data.y - y_offset;
@@ -161,10 +168,10 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
     cv::Mat raw_data = (cv::Mat_<double>(1, 3) << *x, *y, *z);
 
     // Matriz de transformación (obtenida de la calibración)
-    cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
-	 0.9644042,  -0.04023857,  0.0,       
-	-0.04023857,  1.03963511,  0.0,       
-	 0.0,          0.0,          0.9989917);
+ //   cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
+//	 0.9644042,  -0.04023857,  0.0,       
+//	-0.04023857,  1.03963511,  0.0,       
+//	 0.0,          0.0,          0.9989917);
 
 	cv::Mat calibrated_data = raw_data * transformation.t();
     // Obtener los componentes x, y, z de calibrated_data
@@ -529,12 +536,19 @@ int main(int argc, char* argv[])
 	UMBRAL_COLOR = config["umbral_color"];
 	UMBRAL_GRIS = config["umbral_gris"];
 	N_ULT_ARBOLES = config["n_ult_arboles"];
+	DELAY = config["delay"];
 
 
 	// inicializar ui y ventana principal
 	mostrar_init();
 
 	lidar = lidar_load("lidar.txt");
+
+	//       leer_mag_out("mag_out.txt");
+            // Mostrar la imagen en una ventana
+        //cv::imshow("Ventana Principal", ventana_completa);
+        //cv::waitKey(0);  // Actualizar la ventana
+
   	buscar_troncos();
 
 	if (DB)
@@ -675,7 +689,8 @@ void buscar_troncos()
 		tiempo_us = marcaTiempo;
 
 		mostrar_foto(image_color, 1);
-		// usleep(50000);
+		if (DELAY)
+		       	usleep(80000);
     // Ejemplo de uso
     double tiempo_ms = tiempo_us / 1000; // Marca de tiempo en milisegundos
     double x, y, z, grados;
