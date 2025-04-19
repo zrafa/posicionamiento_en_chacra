@@ -27,8 +27,6 @@ using namespace std;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
-int DB = 0;		// ejecutar en modo busqueda
-
 int MARGEN;
 int DISTANCIA_ARBOL;
 int CONSECUTIVOS;
@@ -188,6 +186,7 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
 
 
 // Función para leer el archivo de configuración
+/*
 map<string, int> leer_configuracion(const string& archivo) 
 {
 	ifstream conf_file(archivo);
@@ -221,6 +220,7 @@ map<string, int> leer_configuracion(const string& archivo)
 	conf_file.close();
 	return config;
 }
+*/
 
 
 int tractor_en_peral = 0;
@@ -504,89 +504,6 @@ void buscar_troncos();
 
 
 
-int main(int argc, char* argv[]) 
-{
-	// Verifica si es modo "db" o modo "posicionamiento"
-	if (argc > 1) {
-		if (strcmp(argv[1], "db") == 0) {
-			DB = 1;  // ejecutar en modo DB
-			cout << " en modo DB " << endl;
-		}
-	}
-
-	orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
-
-	if (!DB) {
-		db_load("hilera.db");
-		for (int i=0; i<30; i++) {
-			cout << db[i].id << " " << db[i].diametro_en_px << " " << db[i].diametro_en_cm << endl;
-		}
-	}
-
-    std::string filename = "magnetometro.txt";
-	data_magnetometro = readMagnetometroData(filename);
-	
-
-	// Leer la configuración
-	map<string, int> config = leer_configuracion("config.txt");
-	// Acceder a los valores de la configuración
-	MARGEN = config["margen"];
-	DISTANCIA_ARBOL = config["distancia_arbol"];
-	CONSECUTIVOS = config["consecutivos"];
-	UMBRAL_COLOR = config["umbral_color"];
-	UMBRAL_GRIS = config["umbral_gris"];
-	N_ULT_ARBOLES = config["n_ult_arboles"];
-	DELAY = config["delay"];
-
-
-	// inicializar ui y ventana principal
-	mostrar_init();
-
-	lidar = lidar_load("lidar.txt");
-
-	//       leer_mag_out("mag_out.txt");
-            // Mostrar la imagen en una ventana
-        //cv::imshow("Ventana Principal", ventana_completa);
-        //cv::waitKey(0);  // Actualizar la ventana
-
-  	buscar_troncos();
-
-	if (DB)
-		db_save("hilera.db");
-
-	return 0;
-}
-
-// IDEAS:
-//   tener un arreglo de 4 arboles con los datos:
-//      - nro de arbol en la hilera
-//      - distancia
-//      - diametro
-//      - tal vez orb descriptors
-//
-//   Entonces, si se detectó un tronco al menos 3 veces con distancia acorde, entonces
-//   registrar los 4 siguientes arboles (siempre que cumplan la condiciones:
-//   - hay tronco en la foto
-//   - la distancia es acorde
-//   - tambien registrar el diametro en el arreglo.
-//
-//   Si los diametros coinciden y son "mas o menos interesantes (no muy delgados)", registrar
-//   en la DB:
-//        NRO de arbol en la hilera
-//        diametro
-//        los 4 fingerprints para el mismo arbol
-//
-//   Cuando se busque un arbol en la DB, solo existiran datos (en la DB) de algunos arboles de la hilera. 
-//   Arboles interesantes (los delgados o con diametros que fluctuaron no estarán en la DB)
-//
-//   Entonces el algoritmo de posicionamiento será así:
-//       - por un lado, cuando se detecte un arbol en la foto 3 veces, con distancia acorde,
-//         se contará + 1 (luego tiene que venir un periodo de "no distancia", para volver a contar un arbol
-//         Lo anterior intentará posicionarse "contando" los arboles en la hilera.
-//       - en paralelo, cuando el arbol parezca interesante (diametro parejo, distancia acorde, etc).
-//         se intentará buscar ese arbol en la DB (por diametro, orb descriptors).
-//
-//       
 // ----------------------------------------------------------------------------
 
 int diametros_dispares(const vector<double>& datos) 
@@ -628,6 +545,20 @@ int distancias_dispares(const vector<double>& datos)
 		}
 	}
 	return 0;
+}
+
+
+void recortar_en_y(cv::Mat &imagen) {
+	int n=200;
+    if (imagen.rows > n) {
+        // Definir la región de interés (ROI) 
+        cv::Rect roi(0, 0, imagen.cols, imagen.rows - n);
+
+        // Recortar 
+        imagen = imagen(roi).clone();  // Usamos .clone() para asegurar una copia independiente
+    } else {
+        std::cerr << "La imagen no tiene suficiente altura para recortar 100 píxeles." << std::endl;
+    }
 }
 
 void buscar_troncos()
@@ -677,6 +608,9 @@ void buscar_troncos()
 			cerr << "No se pudo cargar la imagen." << endl;
 			exit(1);
 		}
+
+		//recortar_en_y(image);
+		//recortar_en_y(image_color);
 
 		string nombreArchivo = ss.str();
 		// Encontrar la posición del punto para eliminar la extensión
@@ -787,7 +721,7 @@ void buscar_troncos()
 					arbol_en_db[cual]++;
 				}
 				for (i=0; i<cant_arboles;i++) {
-					if (arbol_en_db[i] >= (N_ULT_ARBOLES/2)) {
+					if (arbol_en_db[i] > (N_ULT_ARBOLES/2)) {
 						cout << arbol << " arbol orb FINAL es: " << i << endl;
 						tractor_en_peral = i;
 						tractor_color = verde;

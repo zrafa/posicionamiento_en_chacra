@@ -20,6 +20,7 @@ set(SOURCES
     src/detectar_troncos.cpp
     src/db.cpp
     src/lidar.cpp
+    src/main.cpp
 )
 
 # Crear el ejecutable

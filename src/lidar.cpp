@@ -29,7 +29,7 @@ using namespace std;
 
 
 // Leer los datos del archivo lidar.txt
-vector<lidar_data> lidar;
+vector<lidar_data> datos_lidar;
 
 
 // leer los datos del archivo lidar.txt
@@ -73,7 +73,7 @@ int lidar_get_distance(long long tiempo_us) {
     int distancia = -1;
     long long menorDiferencia = numeric_limits<long long>::max();
 
-    for (const auto& dato : lidar) {
+    for (const auto& dato : datos_lidar) {
         long long diferencia = abs(dato.marca_us - tiempo_us);
 
         if (diferencia < menorDiferencia) {

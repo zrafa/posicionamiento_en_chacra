@@ -40,7 +40,7 @@ struct lidar_data {
 };
 
 // Leer los datos del archivo lidar.txt
-extern vector<lidar_data> lidar;
+extern vector<lidar_data> datos_lidar;
 
 
 // leer los datos del archivo lidar.txt

@@ -25,6 +25,7 @@ using namespace std;
 
 extern int N_ULT_ARBOLES;
 
+int DB = 0;	/* ejecutar en modo búsqueda */
 
 // ----------- FUNCIONES DE AYUDA
 

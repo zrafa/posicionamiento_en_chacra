@@ -49,6 +49,11 @@ struct arbol_db {
 };
 
 
+extern int DB;
+extern cv::Ptr<cv::ORB> orb;
+extern vector<arbol_db> db;
+
+
 string db_get_foto(int n);
 void db_buscar_por_diametro(double diametro_cm, int arbol_id, int *cual_arbol,
 			   double *cual_diametro);

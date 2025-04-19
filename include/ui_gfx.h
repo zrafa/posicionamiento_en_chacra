@@ -32,6 +32,7 @@ using namespace std;
 #define rojo 0
 #define verde 1
 
+extern int tractor_color;
 
 void mostrar_orientacion(double grados);
 // Función para convertir coordenadas GPS a píxeles
