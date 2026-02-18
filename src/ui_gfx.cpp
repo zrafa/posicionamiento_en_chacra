@@ -87,7 +87,7 @@ void mostrar_orientacion(double grado) {
     );
 
     // Dibujar la flecha
-    arrowedLine(ventana_completa, centro, flecha_final, Scalar(0, 255, 0), 3);
+    // arrowedLine(ventana_completa, centro, flecha_final, Scalar(0, 255, 0), 3);
 
     // Mostrar la imagen en una ventana
 //    imshow("Brújula", ventana_completa);

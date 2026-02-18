@@ -20,6 +20,15 @@
 #include <lidar.h>
 #include <unistd.h>
 
+// PARA CONCURRENTE
+#include <future>
+#include <vector>
+#include <array>
+//#include <mutex>
+//#include <atomic>
+#include <iostream>
+
+
 // OpenCV
 #include <opencv2/opencv.hpp>
 
@@ -369,7 +378,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
         cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
         cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
 
-    	mostrar_foto(result, 3);
+    	//mostrar_foto(result, 3);
     } else {
         cout << "No se detectaron los bordes del tronco." << endl;
     }
@@ -561,6 +570,68 @@ void recortar_en_y(cv::Mat &imagen) {
     }
 }
 
+/* CONCURRENTE */
+extern std::thread db_thread;
+
+void obtener_pos2(frutal *ultimos_arboles, int arbol)
+{
+	    auto t0 = std::chrono::steady_clock::now();
+
+	std::vector<std::future<int>> futuros;
+
+	for (int i = 0; i < N_ULT_ARBOLES; i++) {
+		futuros.push_back(std::async(std::launch::async, db_buscar, ultimos_arboles[i].image));
+	}
+			
+	int cant_arboles = 50;
+	int arbol_en_db[50] = {0};
+	//     // Esperar los resultados y sumar
+	for (auto& fut : futuros) {
+		    try {
+			int cual = fut.get();  
+			if (cual >= 0 && cual < cant_arboles) {
+				arbol_en_db[cual]++;
+			} else {
+				std::cerr << "Valor fuera de rango: " << cual << std::endl;
+			}
+		} catch (const std::exception& e) {
+			std::cerr << "Excepción atrapada en fut.get(): " << e.what() << std::endl;
+		} catch (...) {
+			std::cerr << "Excepción desconocida atrapada en fut.get()" << std::endl;
+		}
+		//int cual = fut.get();         // Espera y obtiene el resultado
+		//arbol_en_db[cual]++;              // Actualiza el conteo
+	}
+
+	for (int i=0; i<cant_arboles;i++) {
+		if (arbol_en_db[i] > (N_ULT_ARBOLES/2)) {
+			cout << arbol << " arbol orb FINAL es: " << i << endl;
+			tractor_en_peral = i;
+			tractor_color = verde;
+			break;
+		} 
+	}
+	        auto t1 = std::chrono::steady_clock::now();
+	auto dur_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+	std::cout << "Tiempo transcurrido: " << dur_us << " us" << std::endl;
+}
+
+void obtener_pos(frutal *frutales, int arbol) 
+{ 
+
+
+
+
+	if (db_thread.joinable())
+		db_thread.join();  
+
+	db_thread = std::thread([=]() {
+		obtener_pos2(frutales, arbol); 
+	});
+}
+/* FIN CONCURRENTE */
+
+
 void buscar_troncos()
 {
 	int tractor_en_hilera = 3;
@@ -586,6 +657,8 @@ void buscar_troncos()
 	chrono::time_point<chrono::high_resolution_clock> start;
 	int ii;
 	for (ii=0; ii<numero; ii++) {
+			// para cronometro - quitar
+	    		auto t0 = std::chrono::steady_clock::now();
 
                 // Captura el tiempo final
                 auto end = chrono::high_resolution_clock::now();
@@ -622,7 +695,7 @@ void buscar_troncos()
 
 		tiempo_us = marcaTiempo;
 
-		mostrar_foto(image_color, 1);
+		//mostrar_foto(image_color, 1);
 		if (DELAY)
 		       	usleep(80000);
     // Ejemplo de uso
@@ -631,8 +704,8 @@ void buscar_troncos()
     magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
 
     std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
-    mostrar_orientacion(grados);
-		mostrar_ventana_completa();
+    //mostrar_orientacion(grados);
+		//mostrar_ventana_completa();
     
 		distancia = lidar_get_distance(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
@@ -661,7 +734,7 @@ void buscar_troncos()
 			encontrar_bordes(image, marcaTiempo, &x1, &x2);
 
 			cv::Mat image2 = cv::imread(ss.str(), cv::IMREAD_GRAYSCALE);
-			mostrar_foto(ultimos_arboles[total].image, 2);
+			//mostrar_foto(ultimos_arboles[total].image, 2);
 		
 
 			tractor_en_peral++;
@@ -677,6 +750,12 @@ void buscar_troncos()
                 		tmp = (((double)ultimos_arboles[i].diametro / (double)ultimos_arboles[i].distancia) * 100.0) / PIXELES_X_CM;
 				diametros.push_back(tmp);
 				distancias.push_back(ultimos_arboles[i].distancia);
+				// para cronometro - quitar
+	        auto t1 = std::chrono::steady_clock::now();
+		auto dur_us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+		std::cout << "Tiempo primero transcurrido: " << dur_us << " us" << std::endl;
+				// fin para cronometro - quitar
+
 			}
 			if (DB) {
 				if (distancias_dispares(distancias) || (diametros_dispares(diametros))) {
@@ -698,8 +777,8 @@ void buscar_troncos()
 				db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
 				cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
     				ostringstream texto;
-    				texto << "gps lat=" << std::fixed << std::setprecision(8) << latitud << " lon=" << longitud;
-    				mostrar_texto(ventana_completa, texto, 700, 600);
+    				// texto << "gps lat=" << std::fixed << std::setprecision(8) << latitud << " lon=" << longitud;
+    				// mostrar_texto(ventana_completa, texto, 700, 600);
 
 				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
 					double diametro_en_cm = diametro_medio(diametros);
@@ -708,18 +787,43 @@ void buscar_troncos()
 					cout << arbol << " arbol por diametro FINAL es: " << cual_arbol << " " << cual_diametro << endl;
     					ostringstream texto;
     					texto << "diametro=" << diametro_en_cm << " cm           ";
-    					mostrar_texto(ventana_completa, texto, 700, 550);
+    					//mostrar_texto(ventana_completa, texto, 700, 550);
 				}
 
 
+
+				// std::array<int, 4> fotos;  // suponiendo que tenés 4 fotos
+				//std::vector<int> arboles(N, 0);  // N = cantidad de clases posibles
+
+
+
+
+
+				/*
+				std::vector<std::future<int>> futuros;
+
+				for (int i = 0; i < N_ULT_ARBOLES; i++) {
+				    futuros.push_back(std::async(std::launch::async, db_buscar, ultimos_arboles[i].image));
+				    }
+			
 				int cant_arboles = 50;
 				int arbol_en_db[50] = {0};
+			     // Esperar los resultados y sumar
+				     for (auto& fut : futuros) {
+				         int cual = fut.get();         // Espera y obtiene el resultado
+				            arbol_en_db[cual]++;              // Actualiza el conteo
+				            }
+				*/
+	
+				     /*
 				for (i=0; i<N_ULT_ARBOLES;i++) {
 					int cual = db_buscar(ultimos_arboles[i].image);
 
 					cout << arbol << " arbol orb es: " << cual << " " << ss.str() << " - " << db_get_foto(cual) << endl;
 					arbol_en_db[cual]++;
 				}
+				*/
+				/*
 				for (i=0; i<cant_arboles;i++) {
 					if (arbol_en_db[i] > (N_ULT_ARBOLES/2)) {
 						cout << arbol << " arbol orb FINAL es: " << i << endl;
@@ -728,6 +832,8 @@ void buscar_troncos()
 						break;
 					} 
 				}
+				*/
+				obtener_pos(ultimos_arboles, arbol);
 			}
 		}
 		total++;

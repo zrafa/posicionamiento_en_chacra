@@ -25,6 +25,9 @@
 // OpenCV
 #include <opencv2/opencv.hpp>
 
+// concurrente
+#include <thread>
+
 using namespace std;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
@@ -119,6 +122,7 @@ int buscarDistanciaCercana(long long tiempo_us) {
 void buscar_troncos();
 
 
+extern std::thread db_thread;
 
 int main(int argc, char* argv[]) 
 {
@@ -130,7 +134,21 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	// EN PC ESTA LINEA
 	orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
+
+	// EN EMBEBIDO ESTA LINEA
+	// orb = new cv::ORB(
+	// 		    100,        // nfeatures
+	// 		        1.01f,      // scaleFactor
+	//  			    3,          // nlevels
+	// 			        65,         // edgeThreshold
+	// 				    2,          // firstLevel
+	//				        4,          // WTA_K
+	//					    cv::ORB::HARRIS_SCORE,  // scoreType
+	//					        45          // patchSize
+	//		);
+
 
 	if (!DB) {
 		db_load("hilera.db");
@@ -155,11 +173,13 @@ int main(int argc, char* argv[])
 
 
 	// inicializar ui y ventana principal
-	mostrar_init();
+	// mostrar_init();
 
 	datos_lidar = lidar_load("lidar.txt");
 
   	buscar_troncos();
+
+	db_thread.join();
 
 	if (DB)
 		db_save("hilera.db");

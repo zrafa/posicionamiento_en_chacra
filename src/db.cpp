@@ -176,6 +176,15 @@ void db_buscar_por_gps(int arbol_id, double latitud, double longitud,
 	*distancia = min_distance;
 }
 
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <iostream>
+
+std::mutex db_add_mutex;
+std::thread db_thread;
+std::atomic<bool> db_add_running(false);
+
 int db_buscar(const cv::Mat& foto) 
 {
     cv::Mat desc_nueva;
@@ -193,7 +202,9 @@ int db_buscar(const cv::Mat& foto)
 
     // Ajustar las imágenes para que tengan el promedio deseado
     adjust_image_to_mean(final_image, target_mean);
-    orb->detectAndCompute(final_image, cv::noArray(), keypoints, desc_nueva);
+    //orb->detectAndCompute(final_image, cv::noArray(), keypoints, desc_nueva);
+    orb->detect(final_image, keypoints);
+    orb->compute(final_image, keypoints, desc_nueva);
 
     cv::BFMatcher matcher(cv::NORM_HAMMING);
     int mejor_id = -1;
@@ -245,9 +256,24 @@ int db_buscar(const cv::Mat& foto)
 
 
 
+void db_add2(int id, int diametro_en_px, double diametro_en_cm, 
+	    double latitud, double longitud, string foto);
 
 // Función para agregar descriptores ORB de un árbol a la base de datos
 void db_add(int id, int diametro_en_px, double diametro_en_cm, 
+	    double latitud, double longitud, string foto) 
+{
+		if (db_thread.joinable())
+			db_thread.join();  
+
+		db_thread = std::thread([=]() {
+		db_add2(id, diametro_en_px, diametro_en_cm, latitud, longitud, foto); 
+	});
+}
+
+
+// Función para agregar descriptores ORB de un árbol a la base de datos
+void db_add2(int id, int diametro_en_px, double diametro_en_cm, 
 	    double latitud, double longitud, string foto) 
 {
 	int i;
@@ -276,7 +302,9 @@ void db_add(int id, int diametro_en_px, double diametro_en_cm,
 		// Ajustar las imágenes para que tengan el promedio deseado
 		adjust_image_to_mean(final_image, target_mean);
 
-		orb->detectAndCompute(final_image, cv::noArray(), keypoints, desc);
+		//orb->detectAndCompute(final_image, cv::noArray(), keypoints, desc);
+		orb->detect(final_image, keypoints);
+		orb->compute(final_image, keypoints, desc);
 		arbol.descriptores.push_back(desc);
 	}
 
