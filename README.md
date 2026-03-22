@@ -2,6 +2,21 @@
 Construcción de un método de posicionamiento dentro de hileras 
 de frutales utilizando integración de sensores y fingerprint.
 
+Instrucciones
+=============
+
+```
+mkdir build
+cd build
+cmake ..
+make
+
+cd hilera/
+posicionamiento_en_chacra db     # para construir la BD hilera.db
+posicionamiento_en_chacra final  # calcular la posicion
+posicionamiento_en_chacra final  -gui  # calcular la posicion e interfaz grafica
+```
+
 ```
 /* 
  * Copyright (C) 2024-2025 Rafael Ignacio Zurita <rafa@fi.uncoma.edu.ar>
