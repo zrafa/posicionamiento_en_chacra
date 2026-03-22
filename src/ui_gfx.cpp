@@ -30,6 +30,7 @@ using namespace std;
 extern int distancia;
 extern long long tiempo_us;
 extern int tractor_en_peral;
+extern int gui; // en main.c
 
 cv::Mat ventana_completa;
 
@@ -39,7 +40,11 @@ int tractor_color = rojo;
 
 using namespace cv;
 
-void mostrar_orientacion(double grado) {
+void mostrar_orientacion(double grado) 
+{
+	if (gui == 0)
+		return;
+
 	int x = 1000;
 	int y = 720;
     // Crear una imagen en blanco (ventana completa)
@@ -87,7 +92,7 @@ void mostrar_orientacion(double grado) {
     );
 
     // Dibujar la flecha
-    // arrowedLine(ventana_completa, centro, flecha_final, Scalar(0, 255, 0), 3);
+    arrowedLine(ventana_completa, centro, flecha_final, Scalar(0, 255, 0), 3);
 
     // Mostrar la imagen en una ventana
 //    imshow("Brújula", ventana_completa);
@@ -141,6 +146,8 @@ void mostrar_gps(cv::Mat &ventana_completa)
 
 void mostrar_texto(cv::Mat &ventana_completa, ostringstream &texto, int x, int y)
 {
+	if (gui == 0)
+		return;
 
     // Definir el tipo de fuente y el tamaño
     int fontFace = cv::FONT_HERSHEY_SIMPLEX;
@@ -240,6 +247,9 @@ void mostrar_hileras_con_tractor(cv::Mat &ventana_completa, int nro_hilera, int 
 
 void mostrar_foto(const cv::Mat& foto_orig, int posicion) 
 {
+	if (gui == 0)
+		return;
+
     cv::Mat foto;
     if (foto_orig.channels() != 3) {
         // Si la imagen no tiene 3 canales, convertirla a RGB
@@ -277,6 +287,9 @@ void mostrar_foto(const cv::Mat& foto_orig, int posicion)
 
 void mostrar_ventana_completa(void) 
 {
+	if (gui == 0)
+		return;
+
     // Llamada a la función para dibujar hileras y tractor en la hilera 3
     mostrar_hileras_con_tractor(ventana_completa, 3, tractor_en_peral);
 
@@ -295,6 +308,9 @@ extern void leer_mag_out(const string &f );
 
 void mostrar_init(void)
 {
+	if (gui == 0)
+		return;
+
        // ventana principal
         cv::namedWindow("Ventana Principal", cv::WINDOW_NORMAL);
         cv::resizeWindow("Ventana Principal", 900, 700);

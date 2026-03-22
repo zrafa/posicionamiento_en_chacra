@@ -378,7 +378,9 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
         cv::line(result, cv::Point(bordeIzquierdo, 0), cv::Point(bordeIzquierdo, rows), cv::Scalar(0, 0, 255), 2);  // Línea roja para el borde izquierdo
         cv::line(result, cv::Point(bordeDerecho, 0), cv::Point(bordeDerecho, rows), cv::Scalar(0, 255, 0), 2);  // Línea verde para el borde derecho
 
-    	//mostrar_foto(result, 3);
+	// gui
+    	mostrar_foto(result, 3);
+
     } else {
         cout << "No se detectaron los bordes del tronco." << endl;
     }
@@ -695,7 +697,9 @@ void buscar_troncos()
 
 		tiempo_us = marcaTiempo;
 
-		//mostrar_foto(image_color, 1);
+		// gui
+		mostrar_foto(image_color, 1);
+		
 		if (DELAY)
 		       	usleep(80000);
     // Ejemplo de uso
@@ -704,8 +708,10 @@ void buscar_troncos()
     magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
 
     std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
-    //mostrar_orientacion(grados);
-		//mostrar_ventana_completa();
+
+    		// gui
+    		mostrar_orientacion(grados);
+		mostrar_ventana_completa();
     
 		distancia = lidar_get_distance(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
@@ -734,8 +740,9 @@ void buscar_troncos()
 			encontrar_bordes(image, marcaTiempo, &x1, &x2);
 
 			cv::Mat image2 = cv::imread(ss.str(), cv::IMREAD_GRAYSCALE);
-			//mostrar_foto(ultimos_arboles[total].image, 2);
-		
+
+			// gui
+			mostrar_foto(ultimos_arboles[total].image, 2);
 
 			tractor_en_peral++;
 			tractor_color = rojo;
@@ -776,18 +783,21 @@ void buscar_troncos()
 				int cual; double distancia;
 				db_buscar_por_gps(arbol, latitud, longitud, &cual, &distancia);
 				cout << arbol << " arbol por GPS FINAL es: " << cual <<  " distancia: " << distancia << endl;
+
+				// gui
     				ostringstream texto;
-    				// texto << "gps lat=" << std::fixed << std::setprecision(8) << latitud << " lon=" << longitud;
-    				// mostrar_texto(ventana_completa, texto, 700, 600);
+    				texto << "gps lat=" << std::fixed << std::setprecision(8) << latitud << " lon=" << longitud;
+    				mostrar_texto(ventana_completa, texto, 700, 600);
 
 				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
 					double diametro_en_cm = diametro_medio(diametros);
 					int cual_arbol; double cual_diametro;
 					db_buscar_por_diametro(diametro_en_cm, arbol, &cual_arbol, &cual_diametro);
 					cout << arbol << " arbol por diametro FINAL es: " << cual_arbol << " " << cual_diametro << endl;
+					// gui
     					ostringstream texto;
     					texto << "diametro=" << diametro_en_cm << " cm           ";
-    					//mostrar_texto(ventana_completa, texto, 700, 550);
+    					mostrar_texto(ventana_completa, texto, 700, 550);
 				}
 
 

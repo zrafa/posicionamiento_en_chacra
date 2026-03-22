@@ -43,6 +43,8 @@ extern cv::Mat ventana_completa;
 
 extern std::vector<MagnetometroData> readMagnetometroData(const std::string& filename);
 
+/* si queremos GUI o sin grafica (embebidos) */
+int gui = 0;
 
 // Función para leer el archivo de configuración
 map<string, int> leer_configuracion(const string& archivo) 
@@ -124,6 +126,29 @@ void buscar_troncos();
 
 extern std::thread db_thread;
 
+void procesar_argumentos(int argc, char* argv[]) 
+{
+	for (int i = 2; i < argc; i++) {
+        	// Solo procesamos argumentos que empiezan con '-'
+		if (argv[i][0] == '-') {
+			// Recorremos cada carácter después del '-'
+			for (int j = 1; argv[i][j] != '\0'; j++) {
+				switch (argv[i][j]) {
+				case 'g':
+					gui = 1;
+					break;
+				// case 't':
+				// 	threads = 1;
+				// 	break;
+				default:
+					printf("arg desconocido: -%c\n", argv[i][j]);
+					break;
+				}
+			}
+		}
+    	}
+}
+
 int main(int argc, char* argv[]) 
 {
 	// Verifica si es modo "db" o modo "posicionamiento"
@@ -132,7 +157,12 @@ int main(int argc, char* argv[])
 			DB = 1;  // ejecutar en modo DB
 			cout << " en modo DB " << endl;
 		}
+	} else {
+		printf("error: coloque al menos un argumento db o pos\n");
+		exit(1);
 	}
+
+	procesar_argumentos(argc, argv);
 
 	// EN PC ESTA LINEA
 	orb = cv::ORB::create(200, 1.01, 3, 65, 2, 4, cv::ORB::HARRIS_SCORE, 45);
@@ -173,7 +203,7 @@ int main(int argc, char* argv[])
 
 
 	// inicializar ui y ventana principal
-	// mostrar_init();
+	mostrar_init();
 
 	datos_lidar = lidar_load("lidar.txt");
 
