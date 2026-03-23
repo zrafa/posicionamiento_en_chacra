@@ -7,6 +7,8 @@
 #include <vector>
 #include <fstream>
 #include <chrono>
+#include <thread>
+#include <semaphore>
 
 #include <sstream>
 #include <cmath>
@@ -22,11 +24,9 @@
 
 // PARA CONCURRENTE
 #include <future>
-#include <vector>
 #include <array>
 //#include <mutex>
 //#include <atomic>
-#include <iostream>
 
 
 // OpenCV
@@ -46,6 +46,7 @@ int DELAY = 0;
 
 int distancia = 0;	/* distancia actual leida desde lidar */
 long long tiempo_us = 0;	/* distancia actual leida desde lidar */
+int total = 0;	/* cant de arboles que se detectaron en los ult frames */
 
 frutal ultimos_arboles[20];
 
@@ -63,7 +64,63 @@ std::vector<MagnetometroData> data_magnetometro;
 
 extern cv::Mat ventana_completa;
 
+// ==== VELOCIDAD ===========================================
 
+float desplazamientoHorizontalLK(const cv::Mat& img1, const cv::Mat& img2, int x1, int ancho,
+                                 float roiWidthRatio = 0.2);
+float pixel_to_meters(float pixel_displacement, float Z_meters);
+
+std::binary_semaphore sem(0); // empieza en 0 → bloqueado
+std::binary_semaphore sem_continue(0); // empieza en 0 → bloqueado
+
+void velocidad() {
+
+	int x1, x2, x, ancho;
+	long long ts1, ts2;
+	double distancia_prom = 0;
+	double vel_seg = 0;
+	while (1) {
+		sem.acquire();
+
+		x1 = ultimos_arboles[0].x1;
+		x2 = ultimos_arboles[total-1].x2;
+		ts1 = ultimos_arboles[0].ts;
+		ts2 = ultimos_arboles[total-1].ts;
+		for (int i=0; i<total-1; i++)
+			distancia_prom += ultimos_arboles[i].distancia;
+		distancia_prom /= total;
+
+		std::cout << "VELOCIDAD x1 x2 " << x1 << " " << x2 << std::endl;
+		if (x1 < x2)
+			x = x1 - abs(x2-x1);
+			//x = x1 - 100;
+		else 
+			x = x2 - abs(x2-x1);
+			//x = x2 - 100;
+		if (x < 0)
+			x = 0;
+
+	    	float dx = desplazamientoHorizontalLK(ultimos_arboles[0].image, ultimos_arboles[total-1].image, x, abs(x2-x1));
+
+		// original: vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom) / (ts2-ts1);
+		//
+		// dividimos por 100 distancia_prom porque esta en cm
+		vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom/100.0) / (ts2-ts1);
+		// multiplicamos * 2 el resultado. Un hack para tapar un error en calibracion
+		vel_seg *= 2;
+
+		std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
+			<< dx << " píxeles " << ultimos_arboles[0].foto << " " <<
+			ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << std::endl;
+
+		sem_continue.release();
+	}
+}
+// ==== FIN de VELOCIDAD ===========================================
+
+
+
+// ==== MAGNETOMETRO =========================================================
 // Función para leer los datos del archivo magnetometro.txt
 std::vector<MagnetometroData> readMagnetometroData(const std::string& filename) {
     std::vector<MagnetometroData> data;
@@ -192,44 +249,9 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
         *grados += 360;
     }
 }
+// ==== FIN MAGNETOMETRO ===================================================
 
 
-// Función para leer el archivo de configuración
-/*
-map<string, int> leer_configuracion(const string& archivo) 
-{
-	ifstream conf_file(archivo);
-        if (!conf_file) {
-        	cerr << "Error: config.txt no existe." << endl;
-        	exit(1);
-        }
-
-	map<string, int> config;
-	string linea;
-
-	while (getline(conf_file, linea)) {
-		// Saltar líneas vacías o comentarios
-		if (linea.empty() || linea[0] == '#') continue;
-
-		// Buscar el signo '='
-		size_t pos = linea.find('=');
-		if (pos != string::npos) {
-			string clave = linea.substr(0, pos);
-			string valor = linea.substr(pos + 1);
-
-			// Convertir el valor a entero
-			stringstream ss(valor);
-			int valorInt;
-			ss >> valorInt;
-
-			config[clave] = valorInt;
-		}
-	}
-
-	conf_file.close();
-	return config;
-}
-*/
 
 
 int tractor_en_peral = 0;
@@ -306,7 +328,7 @@ void ult_arboles_init(void )
 
 
 
-// ------------------------------------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 
 void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *x2) 
@@ -654,7 +676,6 @@ void buscar_troncos()
 	// vemos si podemos encontrar el arbol
 	int x1, x2;  // posible borde de un arbol
 	int arbol = 0;  // nro de arbol en la hilera
-	int total = 0;
   	int i;
 	chrono::time_point<chrono::high_resolution_clock> start;
 	int ii;
@@ -732,6 +753,9 @@ void buscar_troncos()
 		ultimos_arboles[total].diametro = x2-x1;
 		cv::Rect roi(x1, 0, x2-x1, image.rows);
 		ultimos_arboles[total].image = image.clone();
+		strncpy(ultimos_arboles[total].foto, nombreArchivo.c_str(), sizeof(ultimos_arboles[total].foto) - 1);
+		ultimos_arboles[total].foto[sizeof(ultimos_arboles[total].foto) - 1] = '\0';  // asegurar terminación
+		ultimos_arboles[total].ts = tiempo_us;
 
 
 		if (total == (CONSECUTIVOS-1)) {
@@ -843,6 +867,10 @@ void buscar_troncos()
 					} 
 				}
 				*/
+				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
+					sem.release();
+					sem_continue.acquire();
+				}
 				obtener_pos(ultimos_arboles, arbol);
 			}
 		}

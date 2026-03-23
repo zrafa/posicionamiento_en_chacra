@@ -8,6 +8,7 @@ project(posicionamiento)
 
 # EN PC ESTAS LINEAS
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0")
+set(CMAKE_CXX_STANDARD 20)
 
 # set(CMAKE_BUILD_TYPE Debug)
 
@@ -34,6 +35,7 @@ set(SOURCES
     src/detectar_troncos.cpp
     src/db.cpp
     src/lidar.cpp
+    src/velocidad.cpp
     src/main.cpp
 )
 

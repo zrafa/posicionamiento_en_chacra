@@ -30,6 +30,11 @@
 
 using namespace std;
 
+// para velocidad
+void velocidad();
+extern std::binary_semaphore sem;
+
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 
 struct MagnetometroData {
@@ -206,6 +211,11 @@ int main(int argc, char* argv[])
 	mostrar_init();
 
 	datos_lidar = lidar_load("lidar.txt");
+
+	// creamos el thread que calcula velocidad
+	std::thread t(velocidad);
+	//sem.release();
+	
 
   	buscar_troncos();
 
