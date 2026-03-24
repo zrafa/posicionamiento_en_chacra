@@ -66,73 +66,9 @@ extern cv::Mat ventana_completa;
 
 // ==== VELOCIDAD ===========================================
 
-void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *x2);
+extern std::binary_semaphore sem; // empieza en 0 → bloqueado
+extern std::binary_semaphore sem_continue; // empieza en 0 → bloqueado
 
-float desplazamientoHorizontalLK(const cv::Mat& img1, const cv::Mat& img2, int x1, int ancho,
-                                 float roiWidthRatio = 0.2);
-float pixel_to_meters(float pixel_displacement, float Z_meters);
-
-std::binary_semaphore sem(0); // empieza en 0 → bloqueado
-std::binary_semaphore sem_continue(0); // empieza en 0 → bloqueado
-
-void velocidad() {
-
-	int x1, x2, x11, x12, x21, x22, x, ancho;
-	long long ts1, ts2;
-	float distancia_prom = 0;
-	float vel_seg = 0;
-	while (1) {
-		sem.acquire();
-
-
-		x1 = ultimos_arboles[0].x1;
-		x2 = ultimos_arboles[total-1].x2;
-		ts1 = ultimos_arboles[0].ts;
-		ts2 = ultimos_arboles[total-1].ts;
-		for (int i=0; i<total-1; i++)
-			distancia_prom += ultimos_arboles[i].distancia;
-		distancia_prom /= total;
-
-		std::cout << "VELOCIDAD x1 x2 " << x1 << " " << x2 << std::endl;
-		if (x1 < x2)
-			x = x1 - abs(x2-x1);
-			//x = x1 - 100;
-		else 
-			x = x2 - abs(x2-x1);
-			//x = x2 - 100;
-		if (x < 0)
-			x = 0;
-
-		encontrar_bordes(ultimos_arboles[0].image_orig, ultimos_arboles[0].ts, &x11, &x12);
-		x = x11-50;
-		if (x < 0)
-			x = 0;
-		encontrar_bordes(ultimos_arboles[total-1].image_orig, ultimos_arboles[total-1].ts, &x21, &x22);
-	    	float dx = desplazamientoHorizontalLK(ultimos_arboles[0].image_orig, ultimos_arboles[total-1].image_orig, x, abs(x22-x11)+150);
-	    	//float dx = desplazamientoHorizontalLK(ultimos_arboles[0].image, ultimos_arboles[total-1].image, x, abs(x2-x1));
-
-		// original: vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom) / (ts2-ts1);
-		//
-		double dt = (ts2 - ts1) / 1e6; // segundos
-		double Z = distancia_prom / 100.0; // metros
-
-		// usando solo centerX
-		dx = ultimos_arboles[total-1].center_x - ultimos_arboles[0].center_x;
-		double dx_m = pixel_to_meters(dx, Z);
-
-		double vel_seg = dx_m / dt;
-		// dividimos por 100 distancia_prom porque esta en cm
-		//vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom/100.0) / (ts2-ts1);
-		// multiplicamos * 2 el resultado. Un hack para tapar un error en calibracion
-		// vel_seg *= 2;
-
-		std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
-			<< dx << " píxeles " << ultimos_arboles[0].foto << " " <<
-			ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << std::endl;
-
-		sem_continue.release();
-	}
-}
 // ==== FIN de VELOCIDAD ===========================================
 
 
