@@ -35,8 +35,10 @@ struct frutal {
         double latitud;
         double longitud;
         cv::Mat image;  // falta foto
+        cv::Mat image_orig;  // imagen original
 	char foto[30];
 	long long ts;
+	int center_x;
         // falta marca de tiempo
 };
 

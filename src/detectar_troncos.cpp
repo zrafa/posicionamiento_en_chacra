@@ -66,6 +66,8 @@ extern cv::Mat ventana_completa;
 
 // ==== VELOCIDAD ===========================================
 
+void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *x2);
+
 float desplazamientoHorizontalLK(const cv::Mat& img1, const cv::Mat& img2, int x1, int ancho,
                                  float roiWidthRatio = 0.2);
 float pixel_to_meters(float pixel_displacement, float Z_meters);
@@ -75,12 +77,13 @@ std::binary_semaphore sem_continue(0); // empieza en 0 → bloqueado
 
 void velocidad() {
 
-	int x1, x2, x, ancho;
+	int x1, x2, x11, x12, x21, x22, x, ancho;
 	long long ts1, ts2;
-	double distancia_prom = 0;
-	double vel_seg = 0;
+	float distancia_prom = 0;
+	float vel_seg = 0;
 	while (1) {
 		sem.acquire();
+
 
 		x1 = ultimos_arboles[0].x1;
 		x2 = ultimos_arboles[total-1].x2;
@@ -100,18 +103,32 @@ void velocidad() {
 		if (x < 0)
 			x = 0;
 
-	    	float dx = desplazamientoHorizontalLK(ultimos_arboles[0].image, ultimos_arboles[total-1].image, x, abs(x2-x1));
+		encontrar_bordes(ultimos_arboles[0].image_orig, ultimos_arboles[0].ts, &x11, &x12);
+		x = x11-50;
+		if (x < 0)
+			x = 0;
+		encontrar_bordes(ultimos_arboles[total-1].image_orig, ultimos_arboles[total-1].ts, &x21, &x22);
+	    	float dx = desplazamientoHorizontalLK(ultimos_arboles[0].image_orig, ultimos_arboles[total-1].image_orig, x, abs(x22-x11)+150);
+	    	//float dx = desplazamientoHorizontalLK(ultimos_arboles[0].image, ultimos_arboles[total-1].image, x, abs(x2-x1));
 
 		// original: vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom) / (ts2-ts1);
 		//
+		double dt = (ts2 - ts1) / 1e6; // segundos
+		double Z = distancia_prom / 100.0; // metros
+
+		// usando solo centerX
+		dx = ultimos_arboles[total-1].center_x - ultimos_arboles[0].center_x;
+		double dx_m = pixel_to_meters(dx, Z);
+
+		double vel_seg = dx_m / dt;
 		// dividimos por 100 distancia_prom porque esta en cm
-		vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom/100.0) / (ts2-ts1);
+		//vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom/100.0) / (ts2-ts1);
 		// multiplicamos * 2 el resultado. Un hack para tapar un error en calibracion
-		vel_seg *= 2;
+		// vel_seg *= 2;
 
 		std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
 			<< dx << " píxeles " << ultimos_arboles[0].foto << " " <<
-			ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << std::endl;
+			ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << std::endl;
 
 		sem_continue.release();
 	}
@@ -388,7 +405,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 
     // Mostrar los resultados
     if (bordeIzquierdo != -1 && bordeDerecho != -1) {
-        cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << endl;
+        cout << "Borde izquierdo detectado en x: " << bordeIzquierdo << " central_col " << centralCol << endl;
         cout << "Borde derecho detectado en x: " << bordeDerecho << endl;
         cout << "Distancia:  " << distancia << endl;
 	*x1 = bordeIzquierdo;
@@ -412,7 +429,7 @@ void encontrar_bordes(const cv::Mat& img, long long marca_tiempo, int *x1, int *
 
 
 // Función para recortar la imagen alrededor del tronco
-bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_color, cv::Mat& recortada_color) 
+bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_color, cv::Mat& recortada_color, int *center_x) 
 {
 	double centerX;
 
@@ -466,6 +483,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 	vector<pair<int, int>> regions;
 	if (lowVarianceColumns.empty()) {
 		cout << "No se encontró un tronco claro color" << endl;
+		*center_x = -1;
 		return false; // Indicar error
 	};
 
@@ -500,6 +518,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 		// RAFA para nuevas pruebas if (centerX == 0) {
 		if ((centerX == 0) || (centerX < 250) || (centerX > 614) ) {
 			cout << "No se encontró un tronco claro" << endl;
+			*center_x = -1;
 			return false;
 		}
 		cout << " centerx " << centerX << flush ;
@@ -524,6 +543,7 @@ bool recortar_tronco(const cv::Mat& img, cv::Mat& recortada, const cv::Mat& img_
 
 	// Dibujar un círculo rojo en el centro del recorte (opcional)
 	// circle(recortada, cv::Point(100, recortada.rows / 2), 5, cv::Scalar(0, 0, 255), -1);
+	*center_x = centerX;
 	return true;
 }
 
@@ -673,6 +693,7 @@ void buscar_troncos()
 	// Ignorar el resto de la primera línea (por si hay más datos)
 	archivo.ignore(numeric_limits<streamsize>::max(), '\n');
 
+	int centerX;
 	// vemos si podemos encontrar el arbol
 	int x1, x2;  // posible borde de un arbol
 	int arbol = 0;  // nro de arbol en la hilera
@@ -697,7 +718,9 @@ void buscar_troncos()
 		getline(archivo, linea);
 		stringstream ss(linea);
 
-		cv::Mat image = cv::imread(ss.str(), cv::IMREAD_GRAYSCALE);
+		// cv::Mat image = cv::imread(ss.str(), cv::IMREAD_GRAYSCALE);
+		cv::Mat image_orig_gris = cv::imread(ss.str(), cv::IMREAD_GRAYSCALE);
+		cv::Mat image = image_orig_gris.clone();
 		cv::Mat image_color = cv::imread(ss.str(), cv::IMREAD_COLOR);
 
 		if (image.empty()) {
@@ -739,7 +762,7 @@ void buscar_troncos()
 			total = 0;
 			continue;
 		}
-		if (!recortar_tronco(image, image, image_color, image_color)) {
+		if (!recortar_tronco(image, image, image_color, image_color, &centerX)) {
 			continue;
 		}
 		if (total == N_ULT_ARBOLES)
@@ -756,6 +779,8 @@ void buscar_troncos()
 		strncpy(ultimos_arboles[total].foto, nombreArchivo.c_str(), sizeof(ultimos_arboles[total].foto) - 1);
 		ultimos_arboles[total].foto[sizeof(ultimos_arboles[total].foto) - 1] = '\0';  // asegurar terminación
 		ultimos_arboles[total].ts = tiempo_us;
+		ultimos_arboles[total].image_orig = image_orig_gris.clone();
+		ultimos_arboles[total].center_x = centerX;
 
 
 		if (total == (CONSECUTIVOS-1)) {
@@ -867,7 +892,8 @@ void buscar_troncos()
 					} 
 				}
 				*/
-				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
+				//if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
+				if (! (distancias_dispares(distancias))) {
 					sem.release();
 					sem_continue.acquire();
 				}
