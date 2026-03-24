@@ -33,6 +33,8 @@ using namespace std;
 #define verde 1
 
 extern int tractor_color;
+extern cv::Mat ventana_completa;
+
 
 void mostrar_orientacion(double grados);
 // Función para convertir coordenadas GPS a píxeles

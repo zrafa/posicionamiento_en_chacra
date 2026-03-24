@@ -5,6 +5,8 @@
 #include <semaphore>
 
 #include <db.h>
+#include <ui_gfx.h>
+
 
 extern frutal ultimos_arboles[];
 extern int total;
@@ -45,6 +47,11 @@ void velocidad() {
 		// sepa la verdadera velocidad constante de ensayos
 		if (vel_seg < 0.2)
 			vel_seg = -1;
+
+		// gui
+		ostringstream texto;
+		texto << "vel: " << vel_seg << " m/s    ";
+		mostrar_texto(ventana_completa, texto, 1100, 900);
 
                 std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
                         << dx << " píxeles " << ultimos_arboles[0].foto << " " <<

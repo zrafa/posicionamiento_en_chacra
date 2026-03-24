@@ -62,8 +62,6 @@ std::vector<MagnetometroData> data_magnetometro;
 
 
 
-extern cv::Mat ventana_completa;
-
 // ==== VELOCIDAD ===========================================
 
 extern std::binary_semaphore sem; // empieza en 0 → bloqueado
