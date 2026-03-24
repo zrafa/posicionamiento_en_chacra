@@ -829,10 +829,10 @@ void buscar_troncos()
 				}
 				*/
 				//if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
-				if (! (distancias_dispares(distancias))) {
-					sem.release();
-					sem_continue.acquire();
-				}
+				// if (! (distancias_dispares(distancias))) {
+				 	sem.release();
+				 	sem_continue.acquire();
+				// }
 				obtener_pos(ultimos_arboles, arbol);
 			}
 		}

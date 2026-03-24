@@ -9,7 +9,6 @@
 extern frutal ultimos_arboles[];
 extern int total;
 
-
 float pixel_to_meters(float pixel_displacement, float Z_meters);
 
 std::binary_semaphore sem(0); // empieza en 0 → bloqueado
@@ -41,6 +40,11 @@ void velocidad() {
 
                 double vel_seg = dx_m / dt;
                 //vel_seg = 1000000.0 * pixel_to_meters(dx, distancia_prom/100.0) / (ts2-ts1);
+
+		// valores muy bajos son outliers. Esto tiene que ser calibrado cuando se
+		// sepa la verdadera velocidad constante de ensayos
+		if (vel_seg < 0.2)
+			vel_seg = -1;
 
                 std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
                         << dx << " píxeles " << ultimos_arboles[0].foto << " " <<
