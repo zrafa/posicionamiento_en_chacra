@@ -5,6 +5,7 @@
 #include <semaphore>
 
 #include <db.h>
+#include <gps.h>
 #include <ui_gfx.h>
 
 
@@ -53,9 +54,11 @@ void velocidad() {
 		texto << "vel: " << vel_seg << " m/s    ";
 		mostrar_texto(ventana_completa, texto, 1100, 900);
 
+		double vel_gps = gps_get_speed(ts1+((ts2-ts1)/2));
+
                 std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
                         << dx << " píxeles " << ultimos_arboles[0].foto << " " <<
-                        ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << std::endl;
+                        ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << " " << vel_gps << " " << ((vel_seg+vel_gps/100.0)/2.0) << std::endl;
 
                 sem_continue.release();
         }

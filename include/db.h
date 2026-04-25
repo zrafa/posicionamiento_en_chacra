@@ -52,6 +52,13 @@ struct arbol_db {
     vector<cv::Mat> descriptores;
 };
 
+struct GPS_position {
+    double latitude;  // Latitud en grados decimales
+    double longitude; // Longitud en grados decimales
+
+    GPS_position(double lat = 0.0, double lon = 0.0) : latitude(lat), longitude(lon) {}
+};
+
 
 extern int DB;
 extern cv::Ptr<cv::ORB> orb;
@@ -68,6 +75,8 @@ void db_add(int id, int diametro_en_px, double diametro_en_cm,
 	    double latitud, double longitud, string foto);
 void db_save(const string& archivo);
 void db_load(const string& archivo);
+
+double haversine_distance(const GPS_position& pos1, const GPS_position& pos2);
 
 // ---------------------------- fin de DB
 

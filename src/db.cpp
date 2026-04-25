@@ -104,12 +104,14 @@ string db_get_foto(int n)
 	return  "empty";
 }
 
+/*
 struct GPS_position {
     double latitude;  // Latitud en grados decimales
     double longitude; // Longitud en grados decimales
 
     GPS_position(double lat = 0.0, double lon = 0.0) : latitude(lat), longitude(lon) {}
 };
+*/
 
 double haversine_distance(const GPS_position& pos1, const GPS_position& pos2) 
 {

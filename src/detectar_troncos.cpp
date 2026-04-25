@@ -614,6 +614,8 @@ void buscar_troncos()
 {
 	int tractor_en_hilera = 3;
 
+	int gps_timer = 0;
+
 	ifstream archivo("listado.txt");
 	if (!archivo.is_open()) {
 		cerr << "Error al abrir el archivo." << endl;
@@ -634,7 +636,13 @@ void buscar_troncos()
   	int i;
 	chrono::time_point<chrono::high_resolution_clock> start;
 	int ii;
+	double latitud_inicial = 0;
+	double longitud_inicial = 0;
+	double lat_tmp, lon_tmp;
+	long long tiempo_inicial = 0;
+
 	for (ii=0; ii<numero; ii++) {
+
 			// para cronometro - quitar
 	    		auto t0 = std::chrono::steady_clock::now();
 
@@ -662,6 +670,7 @@ void buscar_troncos()
 			exit(1);
 		}
 
+
 		//recortar_en_y(image);
 		//recortar_en_y(image_color);
 
@@ -675,8 +684,39 @@ void buscar_troncos()
 
 		tiempo_us = marcaTiempo;
 
+		// buscar la primera posicion del tractor
+		if (ii<10) {
+			gps_get_lat_lon(tiempo_us, &lat_tmp, &lon_tmp);
+			latitud_inicial += lat_tmp;
+			longitud_inicial += lon_tmp;
+		} else if (ii==10) {
+			latitud_inicial /= 10;
+			longitud_inicial /= 10;
+
+		} else {
+			gps_get_lat_lon(tiempo_us, &lat_tmp, &lon_tmp);
+			GPS_position pos1(lat_tmp, lon_tmp);
+			GPS_position pos2(latitud_inicial, longitud_inicial);
+			// Calcular la distancia en METROS entre las dos posiciones
+			double distance = haversine_distance(pos1, pos2) * 1000.0;
+			if (gps_get_speed(tiempo_us) > 10) {
+				if (tiempo_inicial == 0)
+					tiempo_inicial = tiempo_us;
+				else 
+					cout << " GPS VEL GLOBAL: " << distance / ((tiempo_us - tiempo_inicial)/1000000) << endl;
+
+			}
+
+		}
+
 		// gui
 		mostrar_foto(image_color, 1);
+
+		gps_timer++;
+		if (gps_timer == 10) {
+			gps_timer = 0;
+			cout << " GPS VEL : " << gps_get_speed(tiempo_us) << endl;
+		}
 		
 		if (DELAY)
 		       	usleep(80000);
