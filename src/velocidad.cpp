@@ -17,6 +17,9 @@ float pixel_to_meters(float pixel_displacement, float Z_meters);
 std::binary_semaphore sem(0); // empieza en 0 → bloqueado
 std::binary_semaphore sem_continue(0); // empieza en 0 → bloqueado
 
+double vel_px_n = 0;
+double vel_px_total = 0;
+
 void velocidad() {
 
         long long ts1, ts2;
@@ -48,6 +51,10 @@ void velocidad() {
 		// sepa la verdadera velocidad constante de ensayos
 		if (vel_seg < 0.2)
 			vel_seg = -1;
+		else {
+			vel_px_total += vel_seg;
+			vel_px_n++;
+		}
 
 		// gui
 		ostringstream texto;
@@ -58,17 +65,36 @@ void velocidad() {
 
                 std::cout << "VELOCIDAD: Desplazamiento horizontal calculado: "
                         << dx << " píxeles " << ultimos_arboles[0].foto << " " <<
-                        ultimos_arboles[total-1].foto << " " << vel_seg << " " << ts2-ts1 << " " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << " " << vel_gps << " " << ((vel_seg+vel_gps/100.0)/2.0) << std::endl;
+                        ultimos_arboles[total-1].foto << " " << vel_seg << " " << (vel_px_total/vel_px_n) << "prom " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << " " << vel_gps << " " << ((vel_seg+vel_gps/100.0)/2.0) << std::endl;
 
                 sem_continue.release();
         }
 }
 
 
+/* como adaptamos fx:
+ *
+ *  // Parámetro de calibración original (640x480)
+ *   const float fx_original = 820.2028f;
+ *   const float width_original = 640.0f;
+ *
+ *  // Resolución real actual (la que te devuelve la cámara)
+ *  const float width_current = 864.0f;
+ *
+ *  // Escalado de la focal
+ *  float scale_x = width_current / width_original;
+ *  float fx = fx_original * scale_x;
+ */
 
 float pixel_to_meters(float pixel_displacement, float Z_meters)
 {
-    const float fx = 620.0f; // AJUSTADO EMPÍRICAMENTE
+    const float fx = 720.0f; // AJUSTADO EMPÍRICAMENTE
+    // const float fx = 820.2f; // ORIGINAL 640px, fx=820.2 
+    				// segun la teoria esa camara c525 tiene un 
+				// sensor que puede de modo crudo un ancho a
+				// 864px. Así que fx no cambia en principio.
+				// (640x480 simplemente recorta los pixeles de
+				// los costados)
 
     return (pixel_displacement * Z_meters) / fx;
 }

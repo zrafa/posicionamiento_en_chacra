@@ -702,8 +702,10 @@ void buscar_troncos()
 			if (gps_get_speed(tiempo_us) > 10) {
 				if (tiempo_inicial == 0)
 					tiempo_inicial = tiempo_us;
-				else 
-					cout << " GPS VEL GLOBAL: " << distance / ((tiempo_us - tiempo_inicial)/1000000) << endl;
+				else {
+					double seg = (tiempo_us - tiempo_inicial) / 1000000.0;
+					cout << " GPS VEL GLOBAL: " << distance / seg << "  " << distance << " m  " << seg << " s" << endl;
+				}
 
 			}
 
