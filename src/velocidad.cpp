@@ -88,8 +88,8 @@ void velocidad() {
 
 float pixel_to_meters(float pixel_displacement, float Z_meters)
 {
-    const float fx = 720.0f; // AJUSTADO EMPÍRICAMENTE
-    // const float fx = 820.2f; // ORIGINAL 640px, fx=820.2 
+    // const float fx = 720.0f; // AJUSTADO EMPÍRICAMENTE
+    const float fx = 820.2f; // ORIGINAL 640px, fx=820.2 
     				// segun la teoria esa camara c525 tiene un 
 				// sensor que puede de modo crudo un ancho a
 				// 864px. Así que fx no cambia en principio.
