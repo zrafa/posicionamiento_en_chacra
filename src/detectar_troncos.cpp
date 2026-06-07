@@ -610,6 +610,7 @@ void obtener_pos(frutal *frutales, int arbol)
 /* FIN CONCURRENTE */
 
 
+long long tiempo_inicial = 0;
 void buscar_troncos()
 {
 	int tractor_en_hilera = 3;
@@ -639,7 +640,12 @@ void buscar_troncos()
 	double latitud_inicial = 0;
 	double longitud_inicial = 0;
 	double lat_tmp, lon_tmp;
-	long long tiempo_inicial = 0;
+	
+	double distance;
+	double seg;
+	long long tiempo_us_gps_anterior = 0;
+	double vel_anterior = 0;
+	double distancia_recorrida_real = 0;
 
 	for (ii=0; ii<numero; ii++) {
 
@@ -698,13 +704,14 @@ void buscar_troncos()
 			GPS_position pos1(lat_tmp, lon_tmp);
 			GPS_position pos2(latitud_inicial, longitud_inicial);
 			// Calcular la distancia en METROS entre las dos posiciones
-			double distance = haversine_distance(pos1, pos2) * 1000.0;
+			distance = haversine_distance(pos1, pos2) * 1000.0;
 			if (gps_get_speed(tiempo_us) > 10) {
-				if (tiempo_inicial == 0)
+				if (tiempo_inicial == 0) {
 					tiempo_inicial = tiempo_us;
-				else {
-					double seg = (tiempo_us - tiempo_inicial) / 1000000.0;
-					cout << " GPS VEL GLOBAL: " << distance / seg << "  " << distance << " m  " << seg << " s" << endl;
+				} else {
+					seg = (tiempo_us - tiempo_inicial) / 1000000.0;
+			//		cout << " GPS VEL GLOBAL: " << distance / seg << "  " << distance << " m  " << seg << " s" << endl;
+			//		cout << " VELO2GPSprom: " << (tiempo_us-tiempo_inicial)/1000/1000  << " " << distance / seg << endl;
 				}
 
 			}
@@ -717,7 +724,21 @@ void buscar_troncos()
 		gps_timer++;
 		if (gps_timer == 10) {
 			gps_timer = 0;
+			double vel = gps_get_speed(tiempo_us);
+			double vel_real = ((double)vel_anterior + (double)vel ) / 2.0; 
+			vel_real = (vel_real < 0) ? vel_real * (-1) : vel_real;
+			tiempo_us_gps_anterior = (tiempo_us_gps_anterior == 0) ? tiempo_us : tiempo_us_gps_anterior;
+			double dist_recorrida = vel_real * ((tiempo_us - tiempo_us_gps_anterior)/1000000.0);
+			distancia_recorrida_real += dist_recorrida;
+			cout << " GPS VEL Y DISTANCIAS : " << vel_real << " cm/s  -  " << dist_recorrida << " cm  - " << distancia_recorrida_real << "cm globales " << endl;
+			vel_anterior = vel;
+			tiempo_us_gps_anterior = tiempo_us;
+
 			cout << " GPS VEL : " << gps_get_speed(tiempo_us) << endl;
+			cout << " VELO2GPS: " << (tiempo_us-tiempo_inicial)/1000/1000  << " " << gps_get_speed(tiempo_us) << endl;
+
+					cout << " GPS VEL GLOBAL: " << distance / seg << "  " << distance << " m  " << seg << " s" << endl;
+					cout << " VELO2GPSprom: " << (tiempo_us-tiempo_inicial)/1000/1000  << " " << distance / seg << endl;
 		}
 		
 		if (DELAY)
@@ -813,6 +834,7 @@ void buscar_troncos()
     				ostringstream texto;
     				texto << "gps lat=" << std::fixed << std::setprecision(8) << latitud << " lon=" << longitud;
     				mostrar_texto(ventana_completa, texto, 700, 600);
+    				cout << "lat= " << std::fixed << std::setprecision(8) << latitud << " lon= " << longitud;
 
 				if (! (distancias_dispares(distancias) || (diametros_dispares(diametros)))) {
 					double diametro_en_cm = diametro_medio(diametros);

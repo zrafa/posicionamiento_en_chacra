@@ -138,7 +138,8 @@ void mostrar_gps(cv::Mat &ventana_completa)
 	pos.y += 1000.0f;
 
         // Dibujar un círculo relleno en la posición calculada
-        cv::circle(ventana_completa, pos, 5, cv::Scalar(255, 0, 0), -1); // Círculo rojo de 5 píxeles de radio
+        // cv::circle(ventana_completa, pos, 5, cv::Scalar(255, 0, 0), -1); // Círculo rojo de 5 píxeles de radio
+        cv::circle(ventana_completa, pos, 2, cv::Scalar(255, 0, 0), -1); // Círculo rojo de 2 píxeles de radio
         cout << " B " << pos << endl;
     }
 }

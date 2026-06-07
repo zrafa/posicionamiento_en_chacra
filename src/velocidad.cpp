@@ -20,6 +20,7 @@ std::binary_semaphore sem_continue(0); // empieza en 0 → bloqueado
 double vel_px_n = 0;
 double vel_px_total = 0;
 
+extern long long tiempo_inicial;
 void velocidad() {
 
         long long ts1, ts2;
@@ -67,6 +68,7 @@ void velocidad() {
                         << dx << " píxeles " << ultimos_arboles[0].foto << " " <<
                         ultimos_arboles[total-1].foto << " " << vel_seg << " " << (vel_px_total/vel_px_n) << "prom " << distancia_prom << " " << ultimos_arboles[0].center_x << " " << ultimos_arboles[total-1].center_x << " " << vel_gps << " " << ((vel_seg+vel_gps/100.0)/2.0) << std::endl;
 
+                std::cout << "VELO2: " << (ts2-tiempo_inicial)/1000/1000 << " " << vel_seg << " m/s"  << std::endl;
                 sem_continue.release();
         }
 }
