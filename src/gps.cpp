@@ -83,6 +83,7 @@ void gps_get_lat_lon(long long tiempo_us, double *latitud, double *longitud)
 
 }
 
+/* devuelve velocidad en cm/s */
 double gps_get_speed(long long tiempo_us)
 {
     ifstream file("gps.txt");
