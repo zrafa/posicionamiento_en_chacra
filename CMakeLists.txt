@@ -36,6 +36,7 @@ set(SOURCES
     src/db.cpp
     src/lidar.cpp
     src/velocidad.cpp
+    src/pose.cpp
     src/main.cpp
 )
 

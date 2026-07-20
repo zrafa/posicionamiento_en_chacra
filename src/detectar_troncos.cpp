@@ -20,6 +20,7 @@
 #include <ui_gfx.h>
 #include <db.h>
 #include <lidar.h>
+#include <pose.h>
 #include <unistd.h>
 
 // PARA CONCURRENTE
@@ -196,6 +197,19 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
 						  
     // Calcular los grados (ángulo en el plano XY)
     *grados = std::atan2(*y, *x) * 180 / CV_PI;
+
+    // RAFA CORREGIR PEQUENIO SOFT IRON
+    double corrected =
+    (*grados) - 0.17f * sinf(2.0f * (*grados));
+
+// wrap 0..2pi
+if (corrected < 0)
+    corrected += 2.0f * M_PI;
+
+if (corrected >= 2.0f * M_PI)
+    corrected -= 2.0f * M_PI;
+	*grados = corrected;
+
     if (*grados < 0) {
         *grados += 360;
     }
@@ -646,6 +660,9 @@ void buscar_troncos()
 	long long tiempo_us_gps_anterior = 0;
 	double vel_anterior = 0;
 	double distancia_recorrida_real = 0;
+	Pose2D pose;
+	pose.x = 0;
+	pose.y = 0;
 
 	for (ii=0; ii<numero; ii++) {
 
@@ -710,8 +727,6 @@ void buscar_troncos()
 					tiempo_inicial = tiempo_us;
 				} else {
 					seg = (tiempo_us - tiempo_inicial) / 1000000.0;
-			//		cout << " GPS VEL GLOBAL: " << distance / seg << "  " << distance << " m  " << seg << " s" << endl;
-			//		cout << " VELO2GPSprom: " << (tiempo_us-tiempo_inicial)/1000/1000  << " " << distance / seg << endl;
 				}
 
 			}
@@ -721,39 +736,61 @@ void buscar_troncos()
 		// gui
 		mostrar_foto(image_color, 1);
 
+			double x, y, z, grados;
 		gps_timer++;
 		if (gps_timer == 10) {
 			gps_timer = 0;
+
 			double vel = gps_get_speed(tiempo_us);
 			double vel_real = ((double)vel_anterior + (double)vel ) / 2.0; 
 			vel_real = (vel_real < 0) ? vel_real * (-1) : vel_real;
-			tiempo_us_gps_anterior = (tiempo_us_gps_anterior == 0) ? tiempo_us : tiempo_us_gps_anterior;
+			if (tiempo_us_gps_anterior == 0) {
+				tiempo_us_gps_anterior = tiempo_us;
+				// PRIMERA OBTENCION DE GRADOS 
+    				double tiempo_ms = tiempo_us / 1000; 
+				magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
+				pose.heading_deg = grados;
+			} 
+
 			double dist_recorrida = vel_real * ((tiempo_us - tiempo_us_gps_anterior)/1000000.0);
 			distancia_recorrida_real += dist_recorrida;
 			cout << " GPS VEL Y DISTANCIAS : " << vel_real << " cm/s  -  " << dist_recorrida << " cm  - " << distancia_recorrida_real << "cm globales " << endl;
 			vel_anterior = vel;
-			tiempo_us_gps_anterior = tiempo_us;
 
 			cout << " GPS VEL : " << gps_get_speed(tiempo_us) << endl;
 			cout << " VELO2GPS: " << (tiempo_us-tiempo_inicial)/1000/1000  << " " << gps_get_speed(tiempo_us) << endl;
 
 					cout << " GPS VEL GLOBAL: " << distance / seg << "  " << distance << " m  " << seg << " s" << endl;
 					cout << " VELO2GPSprom: " << (tiempo_us-tiempo_inicial)/1000/1000  << " " << distance / seg << endl;
+
+			// POSE CON MAGNETOMETRO 
+			double tiempo_ms = tiempo_us / 1000; // Marca de tiempo en milisegundos
+			magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
+
+			pose = update_pose(
+			pose.x,
+			pose.y,
+			pose.heading_deg,
+			grados,
+			vel_real,
+			(tiempo_us - tiempo_us_gps_anterior)/1000000.0);
+
+			std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
+			std::cout << "POSE x: " << pose.x << ", y: " << pose.y << ", grados: " << grados << std::endl;
+
+			// FIN POSE CON MAGNETOMETRO 
+			
+			tiempo_us_gps_anterior = tiempo_us;
+
 		}
+
+			// gui del MAGNETOMETRO
+			mostrar_orientacion(grados);
+			mostrar_ventana_completa();
 		
 		if (DELAY)
 		       	usleep(80000);
-    // Ejemplo de uso
-    double tiempo_ms = tiempo_us / 1000; // Marca de tiempo en milisegundos
-    double x, y, z, grados;
-    magnetometro_get(tiempo_ms, &x, &y, &z, &grados, data_magnetometro);
 
-    std::cout << "MAGNE x: " << x << ", y: " << y << ", z: " << z << ", grados: " << grados << std::endl;
-
-    		// gui
-    		mostrar_orientacion(grados);
-		mostrar_ventana_completa();
-    
 		distancia = lidar_get_distance(marcaTiempo);
 		if (distancia > DISTANCIA_ARBOL) {
 			total = 0;
