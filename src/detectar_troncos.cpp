@@ -102,9 +102,14 @@ std::vector<MagnetometroData> readMagnetometroData(const std::string& filename) 
 }
 
     // Aplicar el offset de calibración
-    double x_offset = -984.6073282;
-    double y_offset =  373.97952865;
-    double z_offset =  313.13908064;
+    // double x_offset = -984.6073282;
+    // double y_offset =  373.97952865;
+    // double z_offset =  313.13908064;
+
+    // From CL
+    double x_offset = -1302.326;   // antes -984.6073
+    double y_offset =   303.606;   // antes  373.9795
+    double z_offset =   313.139;   // sin cambios
 
     // Matriz de transformación (obtenida de la calibración)
     cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
@@ -112,9 +117,7 @@ std::vector<MagnetometroData> readMagnetometroData(const std::string& filename) 
  -0.02389597,  1.04829138,  0.0,        
   0.0,          0.0,          0.99909221);
 
-//	 0.9644042,  -0.04023857,  0.0,       
-//	-0.04023857,  1.03963511,  0.0,       
-//	 0.0,          0.0,          0.9989917);
+
 
 
 // Función para leer el archivo mag_out.txt
@@ -171,11 +174,6 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
         }
     }
 
-    // Aplicar el offset de calibración
-//    double x_offset = -713.4790434;
- //   double y_offset = -237.35458116;
-  //  double z_offset = 251.28445005;
-
     *x = closest_data.x - x_offset;
     *y = closest_data.y - y_offset;
     *z = closest_data.z - z_offset;
@@ -183,13 +181,8 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
     // Datos crudos del magnetómetro (ejemplo: [-1450.0, -1387.0, 25.0])
     cv::Mat raw_data = (cv::Mat_<double>(1, 3) << *x, *y, *z);
 
-    // Matriz de transformación (obtenida de la calibración)
- //   cv::Mat transformation = (cv::Mat_<double>(3, 3) <<
-//	 0.9644042,  -0.04023857,  0.0,       
-//	-0.04023857,  1.03963511,  0.0,       
-//	 0.0,          0.0,          0.9989917);
+    cv::Mat calibrated_data = raw_data * transformation.t();
 
-	cv::Mat calibrated_data = raw_data * transformation.t();
     // Obtener los componentes x, y, z de calibrated_data
     *x = calibrated_data.at<double>(0, 0);  // Componente x
     *y = calibrated_data.at<double>(0, 1);  // Componente y
@@ -198,17 +191,19 @@ void magnetometro_get(double tiempo_ms, double* x, double* y, double* z, double*
     // Calcular los grados (ángulo en el plano XY)
     *grados = std::atan2(*y, *x) * 180 / CV_PI;
 
+/*
     // RAFA CORREGIR PEQUENIO SOFT IRON
     double corrected =
     (*grados) - 0.17f * sinf(2.0f * (*grados));
 
-// wrap 0..2pi
-if (corrected < 0)
-    corrected += 2.0f * M_PI;
+    // wrap 0..2pi
+    if (corrected < 0)
+        corrected += 2.0f * M_PI;
 
-if (corrected >= 2.0f * M_PI)
-    corrected -= 2.0f * M_PI;
-	*grados = corrected;
+    if (corrected >= 2.0f * M_PI)
+        corrected -= 2.0f * M_PI;
+     *grados = corrected;
+*/
 
     if (*grados < 0) {
         *grados += 360;
